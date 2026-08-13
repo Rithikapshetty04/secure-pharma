@@ -1,71 +1,64 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 function Register() {
   const navigate = useNavigate();
-  const [organizationName, setOrganizationName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("");
-  const [licenseNumber, setLicenseNumber] = useState("");
-  const [licenseType, setLicenseType] = useState("");
-  const [licenseDocument, setLicenseDocument] = useState(null);
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    organizationName: "",
+    organizationType: "",
+    licenseNumber: "",
+    licenseType: "",
+    licenseDocument: null,
+  });
+
+  const handleChange = (event) => {
+    const { name, value, files } = event.target;
+
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: files ? files[0] : value,
+    }));
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    if (
-      !organizationName ||
-      !email ||
-      !role ||
-      !licenseNumber ||
-      !licenseType ||
-      !licenseDocument ||
-      !password ||
-      !confirmPassword
-    ) {
-      alert("Please fill in all fields.");
-      return;
-    }
+    console.log("Registration form data:", formData);
 
-    if (password !== confirmPassword) {
-      alert("Passwords do not match.");
-      return;
-    }
+    alert(
+      "Registration submitted successfully. Your license is now pending verification."
+    );
 
-    console.log("Registration submitted:", {
-      organizationName,
-      email,
-      role,
-      licenseNumber,
-      licenseType,
-      licenseDocument,
-    });
     navigate("/pending-verification");
   };
 
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1>Create an Account</h1>
+        <h1>Create Account</h1>
 
-        <p>Register your organization with Secure Pharma.</p>
+        <p>
+          Register your organization and submit your pharmaceutical
+          license for verification.
+        </p>
 
         <form onSubmit={handleSubmit}>
+          <h2>User Information</h2>
+
           <div>
-            <label htmlFor="organizationName">
-              Organization Name
-            </label>
+            <label htmlFor="name">Full Name</label>
 
             <input
-              id="organizationName"
+              id="name"
+              name="name"
               type="text"
-              value={organizationName}
-              onChange={(event) =>
-                setOrganizationName(event.target.value)
-              }
-              placeholder="Enter organization name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Enter your full name"
+              required
             />
           </div>
 
@@ -74,20 +67,58 @@ function Register() {
 
             <input
               id="email"
+              name="email"
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={formData.email}
+              onChange={handleChange}
               placeholder="Enter your email"
+              required
             />
           </div>
 
           <div>
-            <label htmlFor="role">Organization Type</label>
+            <label htmlFor="password">Password</label>
+
+            <input
+              id="password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Create a password"
+              required
+            />
+          </div>
+
+          <h2>Organization Information</h2>
+
+          <div>
+            <label htmlFor="organizationName">
+              Organization Name
+            </label>
+
+            <input
+              id="organizationName"
+              name="organizationName"
+              type="text"
+              value={formData.organizationName}
+              onChange={handleChange}
+              placeholder="Enter organization name"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="organizationType">
+              Organization Type
+            </label>
 
             <select
-              id="role"
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
+              id="organizationType"
+              name="organizationType"
+              value={formData.organizationType}
+              onChange={handleChange}
+              required
             >
               <option value="">Select organization type</option>
               <option value="MANUFACTURER">Manufacturer</option>
@@ -96,6 +127,8 @@ function Register() {
             </select>
           </div>
 
+          <h2>License Information</h2>
+
           <div>
             <label htmlFor="licenseNumber">
               License Number
@@ -103,12 +136,12 @@ function Register() {
 
             <input
               id="licenseNumber"
+              name="licenseNumber"
               type="text"
-              value={licenseNumber}
-              onChange={(event) =>
-                setLicenseNumber(event.target.value)
-              }
+              value={formData.licenseNumber}
+              onChange={handleChange}
               placeholder="Enter license number"
+              required
             />
           </div>
 
@@ -119,70 +152,37 @@ function Register() {
 
             <select
               id="licenseType"
-              value={licenseType}
-              onChange={(event) =>
-                setLicenseType(event.target.value)
-              }
+              name="licenseType"
+              value={formData.licenseType}
+              onChange={handleChange}
+              required
             >
               <option value="">Select license type</option>
-              <option value="MANUFACTURING">Manufacturing License</option>
-              <option value="WHOLESALE">Wholesale License</option>
-              <option value="PHARMACY">Pharmacy License</option>
+              <option value="MANUFACTURING">Manufacturing</option>
+              <option value="WHOLESALE">Wholesale</option>
+              <option value="PHARMACY">Pharmacy</option>
             </select>
           </div>
 
           <div>
             <label htmlFor="licenseDocument">
-              License Document
+              Upload License Document
             </label>
 
             <input
               id="licenseDocument"
+              name="licenseDocument"
               type="file"
               accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(event) =>
-                setLicenseDocument(event.target.files[0])
-              }
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password">Password</label>
-
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter your password"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword">
-              Confirm Password
-            </label>
-
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(event) =>
-                setConfirmPassword(event.target.value)
-              }
-              placeholder="Confirm your password"
+              onChange={handleChange}
+              required
             />
           </div>
 
           <button type="submit">
-            Register
+            Submit Registration
           </button>
         </form>
-
-        <p>
-          Already have an account?{" "}
-          <Link to="/login">Login</Link>
-        </p>
       </div>
     </div>
   );

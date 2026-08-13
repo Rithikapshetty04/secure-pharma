@@ -1,9 +1,7 @@
-import { Link } from "react-router-dom";
-
 function PendingVerification() {
   return (
-    <div className="auth-page">
-      <div className="auth-card">
+    <div className="verification-page">
+      <div className="verification-card">
         <h1>Verification Pending</h1>
 
         <p>
@@ -11,26 +9,45 @@ function PendingVerification() {
         </p>
 
         <p>
-          Your license document is currently under verification
-          by the Secure Pharma administration team.
+          Your pharmaceutical license is currently under
+          verification.
         </p>
 
-        <p>
-          You will be able to access your account after your
-          organization and license have been approved.
-        </p>
+        <div className="verification-status">
+          <h2>Current Status</h2>
 
-        <div>
-          <strong>Status:</strong> Pending Verification
+          <p>
+            <strong>Pending Verification</strong>
+          </p>
+        </div>
+
+        <div className="verification-info">
+          <h2>What happens next?</h2>
+
+          <ol>
+            <li>
+              Your submitted license document will be reviewed.
+            </li>
+
+            <li>
+              The license information will be verified.
+            </li>
+
+            <li>
+              An administrator or authorized regulator will review
+              the verification result.
+            </li>
+
+            <li>
+              Once approved, your account will be activated.
+            </li>
+          </ol>
         </div>
 
         <p>
-          Please wait while the verification process is completed.
+          You will be able to access the full Secure Pharma
+          platform after your account has been approved.
         </p>
-
-        <Link to="/">
-          Back to Home
-        </Link>
       </div>
     </div>
   );

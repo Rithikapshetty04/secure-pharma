@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function Navbar() {
-  const { isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -27,6 +27,9 @@ function Navbar() {
         {isAuthenticated && (
           <>
             <Link to="/dashboard">Dashboard</Link>
+            {user?.role === "ADMIN" && (
+              <Link to="/admin">Admin</Link>
+            )}
             <Link to="/supply-chain">Supply Chain</Link>
             <Link to="/profile">Profile</Link>
 
