@@ -4,7 +4,7 @@ const express = require("express");
 const connectDatabase = require("../config/database");
 const cors = require("cors");
 const helmet = require("helmet");
-
+const healthRoutes = require("./routes/healthRoutes");
 const app = express();
 
 connectDatabase();
@@ -12,13 +12,9 @@ connectDatabase();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+console.log("healthRoutes =", healthRoutes);
+app.use("/api/health", healthRoutes);
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Secure Pharma backend is running",
-  });
-});
 
 const PORT = process.env.PORT || 5000;
 
