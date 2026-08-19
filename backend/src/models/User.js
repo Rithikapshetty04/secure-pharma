@@ -21,16 +21,40 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    organizationName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    organizationType: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    licenseNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+
+    licenseDocument: {
+      type: String,
+      default: null,
+    },
+
+    verificationStatus: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "PENDING",
+    },
+
     role: {
       type: String,
       enum: ["USER", "ADMIN"],
       default: "USER",
-    },
-
-    accountStatus: {
-      type: String,
-      enum: ["PENDING", "APPROVED", "REJECTED"],
-      default: "PENDING",
     },
   },
   {
