@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { loginUser } from "../services/authService";
 
 
 function Login() {
@@ -11,7 +12,7 @@ function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     setError("");
@@ -24,16 +25,29 @@ function Login() {
     setIsLoading(true);
 
     try {
-      const userData = {
+      const response = await loginUser({
         email,
-        role: "USER",
-      };
+        password,
+      });
 
-      login(userData);
+      const user = response.user || response.data?.user;
+
+      if (!user) {
+        throw new Error("Invalid login response from server.");
+      }
+
+      login(user);
 
       navigate("/dashboard");
     } catch (error) {
-      setError("Login failed. Please try again.");
+      console.error("Login error:", error);
+
+      setError(
+        error?.message === "Failed to fetch"
+          ? "Unable to connect to the server. Please try again later."
+          : error?.message || "Login failed. Please try again."
+      );
+    } finally {
       setIsLoading(false);
     }
   };
