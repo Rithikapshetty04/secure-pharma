@@ -1,4 +1,5 @@
-const User = require("../models/User");
+const User = require("../../models/User");
+
 const { registerUser } = require("../services/authService");
 
 const register = async (req, res) => {
@@ -10,7 +11,17 @@ const register = async (req, res) => {
       organizationName,
       organizationType,
       licenseNumber,
+      licenseType,
     } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "License document is required.",
+      });
+    }
+
+    const licenseDocument = req.file.path;
 
     if (
       !name ||
@@ -18,7 +29,8 @@ const register = async (req, res) => {
       !password ||
       !organizationName ||
       !organizationType ||
-      !licenseNumber
+      !licenseNumber ||
+      !licenseType
     ) {
       return res.status(400).json({
         success: false,
@@ -42,6 +54,9 @@ const register = async (req, res) => {
       organizationName,
       organizationType,
       licenseNumber,
+      licenseType,
+      licenseDocument,
+      documentPath: licenseDocument,
     });
 
     return res.status(201).json({
@@ -79,6 +94,7 @@ const register = async (req, res) => {
     });
   }
 };
+
 const getVerificationStatus = async (req, res) => {
   try {
     const { userId } = req.query;
@@ -112,6 +128,7 @@ const getVerificationStatus = async (req, res) => {
     });
   }
 };
+
 const login = async (req, res) => {
   res.status(501).json({
     success: false,
