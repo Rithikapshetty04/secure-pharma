@@ -1,59 +1,271 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 
-import MainLayout from "./layouts/MainLayout";
-import ProtectedRoute from "./components/ProtectedRoute";
-import RoleRoute from "./components/RoleRoute";
+import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+import ProtectedRoute from './components/ProtectedRoute';
 
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import PendingVerification from "./pages/PendingVerification";
-import Dashboard from "./pages/Dashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import SupplyChain from "./pages/SupplyChain";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import PendingVerificationPage from './pages/PendingVerificationPage';
+import VerificationPage from './pages/VerificationPage';
 
-function App() {
+import DashboardPage from './pages/DashboardPage';
+import ProfilePage from './pages/ProfilePage';
+import NotificationsPage from './pages/NotificationsPage';
+import OrganizationsPage from './pages/OrganizationsPage';
+import LicensesPage from './pages/LicensesPage';
+import ProductsPage from './pages/ProductsPage';
+import ProductDetailPage from './pages/ProductDetailPage';
+import BatchesPage from './pages/BatchesPage';
+import SupplyChainPage from './pages/SupplyChainPage';
+import AuditLogsPage from './pages/AuditLogsPage';
+import UnauthorizedPage from './pages/UnauthorizedPage';
+import NotFoundPage from './pages/NotFoundPage';
+
+function AppLayout({ children }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <BrowserRouter>
-      <MainLayout>
-        <Routes>
-
-          {/* Public routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route
-            path="/pending-verification"
-            element={<PendingVerification />}
-          />
-
-          {/* Authenticated routes */}
-          <Route element={<ProtectedRoute />}>
-
-            <Route path="/dashboard" element={<Dashboard />} />
-
-            <Route path="/supply-chain" element={<SupplyChain />} />
-
-            <Route path="/profile" element={<Profile />} />
-
-            {/* Admin-only route */}
-            <Route element={<RoleRoute allowedRoles={["ADMIN"]} />}>
-              <Route path="/admin" element={<AdminDashboard />} />
-            </Route>
-
-          </Route>
-
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-
-        </Routes>
-      </MainLayout>
-    </BrowserRouter>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <div style={{ display: 'flex', flex: 1 }}>
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <main style={{ flex: 1, minWidth: 0 }}>
+          {children}
+        </main>
+      </div>
+    </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <AuthProvider>
+      <NotificationProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Standalone Pages */}
+            <Route path="/" element={<AppLayout><LandingPage /></AppLayout>} />
+            <Route path="/login" element={<AppLayout><LoginPage /></AppLayout>} />
+            <Route path="/register" element={<AppLayout><RegisterPage /></AppLayout>} />
+            <Route path="/forgot-password" element={<AppLayout><ForgotPasswordPage /></AppLayout>} />
+            <Route path="/reset-password" element={<AppLayout><ResetPasswordPage /></AppLayout>} />
+            <Route path="/pending-verification" element={<AppLayout><PendingVerificationPage /></AppLayout>} />
+            <Route path="/verify/:identifier" element={<AppLayout><VerificationPage /></AppLayout>} />
+
+            {/* Authenticated Routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><DashboardPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><ProfilePage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><NotificationsPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/organizations"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><OrganizationsPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/licenses"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><LicensesPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/products"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><ProductsPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/products/:id"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><ProductDetailPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/batches"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><BatchesPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/batches/:id"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><BatchesPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/supply-chain"
+              element={
+                <ProtectedRoute>
+                  <AppLayout><SupplyChainPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Role Dedicated Routes */}
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                  <AppLayout><DashboardPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/regulator/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['REGULATOR', 'SUPER_ADMIN', 'ADMIN']}>
+                  <AppLayout><DashboardPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/regulator/licenses"
+              element={
+                <ProtectedRoute allowedRoles={['REGULATOR', 'SUPER_ADMIN', 'ADMIN']}>
+                  <AppLayout><LicensesPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/regulator/organizations"
+              element={
+                <ProtectedRoute allowedRoles={['REGULATOR', 'SUPER_ADMIN', 'ADMIN']}>
+                  <AppLayout><OrganizationsPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/regulator/audit-logs"
+              element={
+                <ProtectedRoute allowedRoles={['REGULATOR', 'SUPER_ADMIN', 'ADMIN']}>
+                  <AppLayout><AuditLogsPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/manufacturer/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['MANUFACTURER']}>
+                  <AppLayout><DashboardPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/manufacturer/products"
+              element={
+                <ProtectedRoute allowedRoles={['MANUFACTURER', 'SUPER_ADMIN', 'ADMIN']}>
+                  <AppLayout><ProductsPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/manufacturer/batches"
+              element={
+                <ProtectedRoute allowedRoles={['MANUFACTURER', 'SUPER_ADMIN', 'ADMIN']}>
+                  <AppLayout><BatchesPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/distributor/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['DISTRIBUTOR']}>
+                  <AppLayout><DashboardPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/distributor/shipments"
+              element={
+                <ProtectedRoute allowedRoles={['DISTRIBUTOR', 'SUPER_ADMIN', 'ADMIN']}>
+                  <AppLayout><SupplyChainPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/pharmacy/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['PHARMACY']}>
+                  <AppLayout><DashboardPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/pharmacy/products"
+              element={
+                <ProtectedRoute allowedRoles={['PHARMACY', 'SUPER_ADMIN', 'ADMIN']}>
+                  <AppLayout><ProductsPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Errors */}
+            <Route path="/unauthorized" element={<AppLayout><UnauthorizedPage /></AppLayout>} />
+            <Route path="/404" element={<AppLayout><NotFoundPage /></AppLayout>} />
+            <Route path="*" element={<Navigate to="/404" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </NotificationProvider>
+    </AuthProvider>
+  );
+}
