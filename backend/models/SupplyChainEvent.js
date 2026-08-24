@@ -7,39 +7,55 @@ const supplyChainEventSchema = new mongoose.Schema(
       ref: "Batch",
       required: true,
     },
-
-    fromOrganization: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
-    },
-
-    toOrganization: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
-    },
-
     eventType: {
       type: String,
       enum: [
         "MANUFACTURED",
-        "SHIPPED",
+        "DISPATCHED",
+        "SHIPPED", // alias for DISPATCHED
         "RECEIVED",
         "TRANSFERRED",
         "DELIVERED",
+        "SOLD",
+        "RETURNED",
+        "RECALLED",
+        "FLAGGED",
       ],
       required: true,
     },
-
+    fromOrganization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+    },
+    toOrganization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+    },
     location: {
       type: String,
       trim: true,
+      default: "",
     },
-
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    quantity: {
+      type: Number,
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    uniqueEventId: {
+      type: String,
+      trim: true,
+    },
     transactionHash: {
       type: String,
       trim: true,
     },
-
     eventDate: {
       type: Date,
       default: Date.now,
@@ -50,7 +66,10 @@ const supplyChainEventSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model(
-  "SupplyChainEvent",
-  supplyChainEventSchema
-);
+supplyChainEventSchema.index({ batch: 1 });
+supplyChainEventSchema.index({ eventDate: 1 });
+supplyChainEventSchema.index({ eventType: 1 });
+supplyChainEventSchema.index({ fromOrganization: 1 });
+supplyChainEventSchema.index({ toOrganization: 1 });
+
+module.exports = mongoose.model("SupplyChainEvent", supplyChainEventSchema);
