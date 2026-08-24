@@ -75,7 +75,7 @@ const registerUser = async (userData) => {
     licenseNumber: normalizedLicenseNumber,
     licenseDocument,
     verificationStatus: "PENDING",
-    role: "USER",
+    role: "organizationType",
   });
 
   return user;
