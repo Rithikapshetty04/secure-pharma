@@ -44,6 +44,7 @@ const batchSchema = new mongoose.Schema(
         "MANUFACTURED",
         "IN_TRANSIT",
         "RECEIVED",
+        "DELIVERED",
         "DISTRIBUTED",
         "SOLD",
         "EXPIRED",
