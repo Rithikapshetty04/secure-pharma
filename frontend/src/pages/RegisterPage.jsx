@@ -82,25 +82,25 @@ export default function RegisterPage() {
       margin: '40px auto 60px',
       padding: '0 20px',
     }}>
-      <div className="glass-card" style={{ padding: '36px' }}>
+      <div className="glass-card" style={{ padding: '36px', background: '#ffffff' }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div
             style={{
               width: '48px',
               height: '48px',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '1.5rem',
               margin: '0 auto 12px',
-              boxShadow: '0 0 20px rgba(0, 242, 254, 0.4)',
+              boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)',
             }}
           >
             📜
           </div>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '6px' }}>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '6px', color: '#1e293b' }}>
             Pharmaceutical Entity Registration
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -110,11 +110,11 @@ export default function RegisterPage() {
 
         {error && (
           <div style={{
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.4)',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
             borderRadius: 'var(--radius-sm)',
             padding: '12px',
-            color: '#fca5a5',
+            color: '#b91c1c',
             fontSize: '0.85rem',
             marginBottom: '20px',
           }}>
@@ -124,14 +124,14 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Section 1: Organization */}
-          <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '18px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-            <h4 style={{ fontSize: '0.9rem', color: 'var(--accent-cyan)', marginBottom: '14px', letterSpacing: '0.04em' }}>
+          <div style={{ background: '#f8fafc', padding: '18px', borderRadius: 'var(--radius-sm)', border: '1px solid #e2e8f0' }}>
+            <h4 style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1d4ed8', marginBottom: '14px', letterSpacing: '0.04em' }}>
               1. ORGANIZATION DETAILS
             </h4>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   ORGANIZATION LEGAL NAME *
                 </label>
                 <input
@@ -143,17 +143,14 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   ORGANIZATION TYPE *
                 </label>
                 <select
@@ -162,10 +159,7 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                   }}
                 >
@@ -176,7 +170,7 @@ export default function RegisterPage() {
               </div>
 
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   HEADQUARTERS / FACILITY ADDRESS
                 </label>
                 <input
@@ -187,10 +181,7 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                   }}
                 />
@@ -199,14 +190,14 @@ export default function RegisterPage() {
           </div>
 
           {/* Section 2: Regulatory License */}
-          <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '18px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-            <h4 style={{ fontSize: '0.9rem', color: '#10b981', marginBottom: '14px', letterSpacing: '0.04em' }}>
+          <div style={{ background: '#f8fafc', padding: '18px', borderRadius: 'var(--radius-sm)', border: '1px solid #e2e8f0' }}>
+            <h4 style={{ fontSize: '0.85rem', fontWeight: '700', color: '#059669', marginBottom: '14px', letterSpacing: '0.04em' }}>
               2. PHARMACEUTICAL LICENSE & PROOF
             </h4>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   OFFICIAL LICENSE NUMBER *
                 </label>
                 <input
@@ -218,17 +209,14 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   LICENSE CLASSIFICATION *
                 </label>
                 <select
@@ -237,10 +225,7 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                   }}
                 >
@@ -252,7 +237,7 @@ export default function RegisterPage() {
               </div>
 
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   UPLOAD REGULATORY LICENSE DOCUMENT (PDF, JPG, PNG - MAX 5MB) *
                 </label>
                 <input
@@ -263,16 +248,13 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px dashed var(--accent-cyan)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                     cursor: 'pointer',
                   }}
                 />
                 {licenseFile && (
-                  <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '4px' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '4px', fontWeight: '600' }}>
                     ✓ Attached: {licenseFile.name} ({(licenseFile.size / 1024).toFixed(1)} KB)
                   </div>
                 )}
@@ -281,14 +263,14 @@ export default function RegisterPage() {
           </div>
 
           {/* Section 3: Authorized Administrator */}
-          <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '18px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-            <h4 style={{ fontSize: '0.9rem', color: '#a855f7', marginBottom: '14px', letterSpacing: '0.04em' }}>
+          <div style={{ background: '#f8fafc', padding: '18px', borderRadius: 'var(--radius-sm)', border: '1px solid #e2e8f0' }}>
+            <h4 style={{ fontSize: '0.85rem', fontWeight: '700', color: '#7c3aed', marginBottom: '14px', letterSpacing: '0.04em' }}>
               3. AUTHORIZED REPRESENTATIVE CREDENTIALS
             </h4>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   FULL NAME *
                 </label>
                 <input
@@ -300,17 +282,14 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   OFFICIAL EMAIL ADDRESS *
                 </label>
                 <input
@@ -322,17 +301,14 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   PASSWORD (MIN 6 CHARS) *
                 </label>
                 <input
@@ -344,17 +320,14 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '6px', color: 'var(--text-dim)' }}>
                   CONFIRM PASSWORD *
                 </label>
                 <input
@@ -366,10 +339,7 @@ export default function RegisterPage() {
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    color: '#fff',
                     fontSize: '0.85rem',
                   }}
                 />
@@ -389,7 +359,7 @@ export default function RegisterPage() {
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
           Already registered?{' '}
-          <Link to="/login" style={{ color: 'var(--accent-cyan)', fontWeight: '600', textDecoration: 'none' }}>
+          <Link to="/login" style={{ color: '#2563eb', fontWeight: '700', textDecoration: 'none' }}>
             Sign In
           </Link>
         </div>

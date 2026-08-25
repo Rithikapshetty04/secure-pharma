@@ -52,46 +52,46 @@ export default function VerificationPage() {
         return {
           title: 'GENUINE PHARMACEUTICAL PRODUCT',
           subtitle: 'Verified authentic against federal regulatory registry and immutable custody chain.',
-          color: '#10b981',
+          color: '#047857',
           icon: '✅',
-          bg: 'rgba(16, 185, 129, 0.1)',
-          border: 'rgba(16, 185, 129, 0.3)',
+          bg: '#ecfdf5',
+          border: '#a7f3d0',
         };
       case 'RECALLED':
         return {
           title: 'OFFICIAL RECALL ORDER ACTIVE',
           subtitle: 'This batch has been marked as RECALLED. Do not dispense, sell, or consume.',
-          color: '#ef4444',
+          color: '#b91c1c',
           icon: '🛑',
-          bg: 'rgba(239, 68, 68, 0.15)',
-          border: 'rgba(239, 68, 68, 0.5)',
+          bg: '#fef2f2',
+          border: '#fecaca',
         };
       case 'EXPIRED':
         return {
           title: 'EXPIRED PHARMACEUTICAL BATCH',
           subtitle: 'This batch has passed its certified expiration date. Discard per safety protocols.',
-          color: '#f59e0b',
+          color: '#b45309',
           icon: '⚠️',
-          bg: 'rgba(245, 158, 11, 0.15)',
-          border: 'rgba(245, 158, 11, 0.4)',
+          bg: '#fffbeb',
+          border: '#fde68a',
         };
       case 'SUSPICIOUS':
         return {
           title: 'SUSPICIOUS / UNVERIFIED PRODUCT',
           subtitle: 'Regulatory checks failed. Unregistered entity or broken custodial provenance.',
-          color: '#f43f5e',
+          color: '#be123c',
           icon: '🚨',
-          bg: 'rgba(244, 63, 94, 0.15)',
-          border: 'rgba(244, 63, 94, 0.5)',
+          bg: '#fff1f2',
+          border: '#fecdd3',
         };
       default:
         return {
           title: 'NO REGISTERED LEDGER RECORD',
           subtitle: 'Identifier was not found. This product may be unregistered or counterfeit.',
-          color: '#64748b',
+          color: '#475569',
           icon: '❌',
-          bg: 'rgba(100, 116, 139, 0.15)',
-          border: 'rgba(100, 116, 139, 0.4)',
+          bg: '#f8fafc',
+          border: '#e2e8f0',
         };
     }
   };
@@ -101,7 +101,7 @@ export default function VerificationPage() {
   return (
     <div style={{ maxWidth: '1100px', margin: '40px auto 80px', padding: '0 20px' }}>
       {/* Search Header */}
-      <div className="glass-card" style={{ padding: '24px', marginBottom: '28px' }}>
+      <div className="glass-card" style={{ padding: '24px', marginBottom: '28px', background: '#ffffff' }}>
         <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px' }}>
           <input
             type="text"
@@ -112,10 +112,7 @@ export default function VerificationPage() {
             style={{
               flex: 1,
               padding: '12px 16px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.95rem',
             }}
           />
@@ -128,7 +125,7 @@ export default function VerificationPage() {
       {loading && (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <div className="live-dot" style={{ width: '24px', height: '24px', margin: '0 auto 16px' }}></div>
-          <div style={{ color: 'var(--accent-cyan)', fontWeight: '700', fontSize: '1.1rem' }}>
+          <div style={{ color: '#1d4ed8', fontWeight: '700', fontSize: '1.1rem' }}>
             Executing 9-Point Distributed Verification Algorithm...
           </div>
           <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '6px' }}>
@@ -138,7 +135,7 @@ export default function VerificationPage() {
       )}
 
       {error && !loading && (
-        <div className="glass-card" style={{ padding: '30px', textAlign: 'center', color: '#f87171' }}>
+        <div className="glass-card" style={{ padding: '30px', textAlign: 'center', color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca' }}>
           <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚠️</div>
           <h3>Verification Query Failed</h3>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{error}</p>
@@ -152,21 +149,21 @@ export default function VerificationPage() {
             background: statusConfig.bg,
             border: `2px solid ${statusConfig.border}`,
             borderRadius: 'var(--radius-lg)',
-            padding: '30px 24px',
+            padding: '32px 24px',
             textAlign: 'center',
-            boxShadow: `0 0 30px ${statusConfig.bg}`,
+            boxShadow: 'var(--shadow-md)',
           }}>
             <div style={{ fontSize: '3rem', marginBottom: '8px' }}>{statusConfig.icon}</div>
             <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: statusConfig.color, marginBottom: '6px' }}>
               {statusConfig.title}
             </h2>
-            <p style={{ fontSize: '1rem', color: '#fff', maxWidth: '680px', margin: '0 auto 16px', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '1rem', color: '#1e293b', maxWidth: '680px', margin: '0 auto 16px', lineHeight: 1.5, fontWeight: '500' }}>
               {data.message}
             </p>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
               <StatusBadge status={data.status} />
               {data.batch?.batchNumber && (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-dim)', fontWeight: '600' }}>
                   Batch #{data.batch.batchNumber}
                 </span>
               )}
@@ -175,8 +172,8 @@ export default function VerificationPage() {
 
           {/* 9-Point Verification Checklist */}
           {data.checks && Object.keys(data.checks).length > 0 && (
-            <div className="glass-card" style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#1e3a8a' }}>
                 <span>🛡️</span> 9-Point Regulatory Integrity Checklist
               </h3>
 
@@ -205,14 +202,14 @@ export default function VerificationPage() {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '10px 14px',
-                        background: passed ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.08)',
-                        border: `1px solid ${passed ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.3)'}`,
+                        background: passed ? '#ecfdf5' : '#fef2f2',
+                        border: `1px solid ${passed ? '#a7f3d0' : '#fecaca'}`,
                         borderRadius: 'var(--radius-sm)',
                         fontSize: '0.85rem',
                       }}
                     >
-                      <span style={{ color: passed ? '#fff' : '#fca5a5' }}>{item.label}</span>
-                      <span style={{ fontWeight: '700', color: passed ? '#10b981' : '#ef4444' }}>
+                      <span style={{ color: passed ? '#065f46' : '#991b1b', fontWeight: '500' }}>{item.label}</span>
+                      <span style={{ fontWeight: '700', color: passed ? '#047857' : '#b91c1c' }}>
                         {passed ? '✓ PASSED' : '✕ FAILED'}
                       </span>
                     </div>
@@ -230,78 +227,78 @@ export default function VerificationPage() {
               gap: '24px',
             }}>
               {/* Product Card */}
-              <div className="glass-card" style={{ padding: '24px' }}>
-                <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: 'var(--accent-cyan)' }}>
+              <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: '#1d4ed8' }}>
                   💊 Pharmaceutical Specifications
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
                   <div>
-                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>DRUG NAME</span>
-                    <strong style={{ fontSize: '1rem', color: '#fff' }}>{data.product.name}</strong>
+                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>DRUG NAME</span>
+                    <strong style={{ fontSize: '1.05rem', color: 'var(--text-heading)' }}>{data.product.name}</strong>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>GENERIC NAME</span>
-                      <strong>{data.product.genericName || 'N/A'}</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>GENERIC NAME</span>
+                      <strong style={{ color: 'var(--text-heading)' }}>{data.product.genericName || 'N/A'}</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>BRAND NAME</span>
-                      <strong>{data.product.brandName || 'N/A'}</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>BRAND NAME</span>
+                      <strong style={{ color: 'var(--text-heading)' }}>{data.product.brandName || 'N/A'}</strong>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>DOSAGE & STRENGTH</span>
-                      <strong>{data.product.dosageForm} ({data.product.strength})</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>DOSAGE & STRENGTH</span>
+                      <strong style={{ color: 'var(--text-heading)' }}>{data.product.dosageForm} ({data.product.strength})</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>PRODUCT CODE / NDC</span>
-                      <strong style={{ fontFamily: 'var(--font-mono)' }}>{data.product.productCode}</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>PRODUCT CODE / NDC</span>
+                      <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>{data.product.productCode}</strong>
                     </div>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>STORAGE CRITERIA</span>
+                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>STORAGE CRITERIA</span>
                     <span style={{ color: 'var(--text-muted)' }}>{data.product.storageRequirements}</span>
                   </div>
                 </div>
               </div>
 
               {/* Batch & Manufacturer Card */}
-              <div className="glass-card" style={{ padding: '24px' }}>
-                <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: '#10b981' }}>
+              <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: '#059669' }}>
                   🏭 Batch & Manufacturer Credentials
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
                   <div>
-                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>MANUFACTURER</span>
-                    <strong style={{ fontSize: '1rem', color: '#fff' }}>{data.manufacturer?.name}</strong>
+                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>MANUFACTURER</span>
+                    <strong style={{ fontSize: '1.05rem', color: 'var(--text-heading)' }}>{data.manufacturer?.name}</strong>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>LICENSE NUMBER</span>
-                      <strong style={{ fontFamily: 'var(--font-mono)' }}>{data.manufacturer?.licenseNumber}</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>LICENSE NUMBER</span>
+                      <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>{data.manufacturer?.licenseNumber}</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>LICENSE STATUS</span>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>LICENSE STATUS</span>
                       <StatusBadge status={data.manufacturer?.licenseStatus} />
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>MANUFACTURING DATE</span>
-                      <strong>{new Date(data.batch.manufacturingDate).toLocaleDateString()}</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>MANUFACTURING DATE</span>
+                      <strong style={{ color: 'var(--text-heading)' }}>{new Date(data.batch.manufacturingDate).toLocaleDateString()}</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>EXPIRATION DATE</span>
-                      <strong style={{ color: new Date(data.batch.expiryDate) < new Date() ? '#ef4444' : '#10b981' }}>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>EXPIRATION DATE</span>
+                      <strong style={{ color: new Date(data.batch.expiryDate) < new Date() ? '#dc2626' : '#059669' }}>
                         {new Date(data.batch.expiryDate).toLocaleDateString()}
                       </strong>
                     </div>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>ISSUING REGULATOR</span>
+                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>ISSUING REGULATOR</span>
                     <span style={{ color: 'var(--text-muted)' }}>{data.manufacturer?.issuingAuthority}</span>
                   </div>
                 </div>
@@ -311,8 +308,8 @@ export default function VerificationPage() {
 
           {/* QR Code & Direct Proof */}
           {data.batch && (
-            <div className="glass-card" style={{ padding: '24px', textAlign: 'center' }}>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px' }}>Digital QR Authenticity Stamp</h3>
+            <div className="glass-card" style={{ padding: '24px', textAlign: 'center', background: '#ffffff' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: '#1e3a8a' }}>Digital QR Authenticity Stamp</h3>
               <QRCodeGenerator
                 identifier={data.batch.qrIdentifier || data.batch.batchNumber}
                 batchNumber={data.batch.batchNumber}
@@ -323,10 +320,10 @@ export default function VerificationPage() {
           )}
 
           {/* Chronological Custodial Provenance */}
-          <div className="glass-card" style={{ padding: '24px' }}>
+          <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h3 style={{ fontSize: '1.2rem', margin: 0 }}>⛓️ Complete Supply Chain Provenance</h3>
+                <h3 style={{ fontSize: '1.2rem', margin: 0, color: '#1e3a8a' }}>⛓️ Complete Supply Chain Provenance</h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>
                   Audited custodial handover checkpoints
                 </p>

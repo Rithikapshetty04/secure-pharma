@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -28,15 +28,19 @@ import AuditLogsPage from './pages/AuditLogsPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import NotFoundPage from './pages/NotFoundPage';
 
-function AppLayout({ children }) {
+function AppLayout({ children, hideSidebar = false }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+  const isLanding = location.pathname === '/';
+  const isAuthPage = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-verification'].includes(location.pathname);
+  const shouldShowSidebar = !isLanding && !isAuthPage && !hideSidebar;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar onToggleSidebar={shouldShowSidebar ? () => setSidebarOpen(!sidebarOpen) : null} isLanding={isLanding} />
       <div style={{ display: 'flex', flex: 1 }}>
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main style={{ flex: 1, minWidth: 0 }}>
+        {shouldShowSidebar && <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
+        <main style={{ flex: 1, minWidth: 0, width: '100%' }}>
           {children}
         </main>
       </div>

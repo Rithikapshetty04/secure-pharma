@@ -89,7 +89,7 @@ export default function ProductsPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: '#1e293b' }}>
             💊 Pharmaceutical Formulary Catalog
           </h1>
           <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '4px' }}>
@@ -105,7 +105,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px' }}>
+      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px', background: '#ffffff' }}>
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <input
             type="text"
@@ -116,10 +116,7 @@ export default function ProductsPage() {
               flex: 1,
               minWidth: '240px',
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           />
@@ -132,10 +129,7 @@ export default function ProductsPage() {
             }}
             style={{
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           >
@@ -156,11 +150,11 @@ export default function ProductsPage() {
 
       {/* Products Grid */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--accent-cyan)' }}>
+        <div style={{ textAlign: 'center', padding: '60px 0', color: '#2563eb', fontWeight: '600' }}>
           Loading registered pharmaceutical formulary...
         </div>
       ) : products.length === 0 ? (
-        <div className="glass-card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
+        <div className="glass-card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)', background: '#ffffff' }}>
           No pharmaceutical products found matching criteria.
         </div>
       ) : (
@@ -170,7 +164,7 @@ export default function ProductsPage() {
           gap: '20px',
         }}>
           {products.map((p) => (
-            <div key={p._id} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div key={p._id} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', background: '#ffffff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                 <span className="badge badge-purple" style={{ fontSize: '0.7rem' }}>
                   {p.category}
@@ -178,7 +172,7 @@ export default function ProductsPage() {
                 <StatusBadge status={p.status} />
               </div>
 
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1e3a8a', marginBottom: '4px' }}>
                 {p.name}
               </h3>
 
@@ -189,8 +183,9 @@ export default function ProductsPage() {
               )}
 
               <div style={{
-                background: 'rgba(255, 255, 255, 0.02)',
-                padding: '10px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                padding: '10px 12px',
                 borderRadius: 'var(--radius-sm)',
                 margin: '10px 0 16px',
                 fontSize: '0.8rem',
@@ -199,20 +194,20 @@ export default function ProductsPage() {
                 gap: '8px',
               }}>
                 <div>
-                  <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.7rem' }}>PRODUCT CODE</span>
-                  <strong style={{ fontFamily: 'var(--font-mono)' }}>{p.productCode}</strong>
+                  <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.7rem', fontWeight: '700' }}>PRODUCT CODE</span>
+                  <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>{p.productCode}</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.7rem' }}>DOSAGE / FORM</span>
-                  <strong>{p.dosageForm} ({p.strength || 'N/A'})</strong>
+                  <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.7rem', fontWeight: '700' }}>DOSAGE / FORM</span>
+                  <strong style={{ color: 'var(--text-heading)' }}>{p.dosageForm} ({p.strength || 'N/A'})</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.7rem' }}>NDC / REG ID</span>
-                  <strong style={{ fontFamily: 'var(--font-mono)' }}>{p.regulatoryApprovalNumber || 'FDA-REG'}</strong>
+                  <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.7rem', fontWeight: '700' }}>NDC / REG ID</span>
+                  <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>{p.regulatoryApprovalNumber || 'FDA-REG'}</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.7rem' }}>MANUFACTURER</span>
-                  <strong style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+                  <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.7rem', fontWeight: '700' }}>MANUFACTURER</span>
+                  <strong style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', color: 'var(--text-heading)' }}>
                     {p.manufacturer?.name || 'Verified Mfg'}
                   </strong>
                 </div>
@@ -241,13 +236,13 @@ export default function ProductsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.25rem', margin: 0 }}>Register New Pharmaceutical Drug</h3>
+              <h3 style={{ fontSize: '1.25rem', margin: 0, color: '#1e3a8a' }}>Register New Pharmaceutical Drug</h3>
               <button onClick={() => setShowCreateModal(false)} className="btn btn-outline btn-sm">✕</button>
             </div>
 
             <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                   PRODUCT TRADE NAME *
                 </label>
                 <input
@@ -256,13 +251,13 @@ export default function ProductsPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Amoxicillin Trihydrate 500mg"
-                  style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     GENERIC NAME
                   </label>
                   <input
@@ -270,11 +265,11 @@ export default function ProductsPage() {
                     value={formData.genericName}
                     onChange={(e) => setFormData({ ...formData, genericName: e.target.value })}
                     placeholder="e.g. Amoxicillin"
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     BRAND NAME
                   </label>
                   <input
@@ -282,14 +277,14 @@ export default function ProductsPage() {
                     value={formData.brandName}
                     onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
                     placeholder="e.g. AmoxApex"
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     UNIQUE PRODUCT CODE / GTIN *
                   </label>
                   <input
@@ -298,11 +293,11 @@ export default function ProductsPage() {
                     value={formData.productCode}
                     onChange={(e) => setFormData({ ...formData, productCode: e.target.value })}
                     placeholder="e.g. AMOX-500MG"
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff', fontFamily: 'var(--font-mono)' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     REGULATORY APPROVAL / NDC #
                   </label>
                   <input
@@ -310,20 +305,20 @@ export default function ProductsPage() {
                     value={formData.regulatoryApprovalNumber}
                     onChange={(e) => setFormData({ ...formData, regulatoryApprovalNumber: e.target.value })}
                     placeholder="e.g. NDC-65123-401-10"
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     CATEGORY
                   </label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   >
                     <option value="Antibiotic / Anti-Infective">Antibiotic / Anti-Infective</option>
                     <option value="Biological / Vaccine">Biological / Vaccine</option>
@@ -335,7 +330,7 @@ export default function ProductsPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     DOSAGE FORM
                   </label>
                   <input
@@ -343,14 +338,14 @@ export default function ProductsPage() {
                     value={formData.dosageForm}
                     onChange={(e) => setFormData({ ...formData, dosageForm: e.target.value })}
                     placeholder="e.g. Capsule, Tablet, Injectable"
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     STRENGTH
                   </label>
                   <input
@@ -358,11 +353,11 @@ export default function ProductsPage() {
                     value={formData.strength}
                     onChange={(e) => setFormData({ ...formData, strength: e.target.value })}
                     placeholder="e.g. 500mg, 10mg/ml"
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     PACKAGE SIZE
                   </label>
                   <input
@@ -370,13 +365,13 @@ export default function ProductsPage() {
                     value={formData.packageSize}
                     onChange={(e) => setFormData({ ...formData, packageSize: e.target.value })}
                     placeholder="e.g. 100 Capsules / Bottle"
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                   STORAGE REQUIREMENTS
                 </label>
                 <input
@@ -384,7 +379,7 @@ export default function ProductsPage() {
                   value={formData.storageRequirements}
                   onChange={(e) => setFormData({ ...formData, storageRequirements: e.target.value })}
                   placeholder="e.g. Store at controlled room temperature 15°C to 25°C"
-                  style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                 />
               </div>
 
