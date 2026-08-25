@@ -20,12 +20,12 @@ export default function Sidebar({ isOpen, onClose }) {
     gap: '12px',
     padding: '10px 14px',
     borderRadius: 'var(--radius-sm)',
-    color: isActive ? '#fff' : 'var(--text-muted)',
-    background: isActive ? 'linear-gradient(90deg, rgba(0, 242, 254, 0.15), rgba(79, 172, 254, 0.05))' : 'transparent',
-    borderLeft: isActive ? '3px solid var(--accent-cyan)' : '3px solid transparent',
+    color: isActive ? '#1d4ed8' : 'var(--text-muted)',
+    background: isActive ? '#eff6ff' : 'transparent',
+    borderLeft: isActive ? '3px solid #2563eb' : '3px solid transparent',
     textDecoration: 'none',
-    fontWeight: isActive ? '600' : '400',
-    fontSize: '0.9rem',
+    fontWeight: isActive ? '700' : '500',
+    fontSize: '0.875rem',
     transition: 'all 0.15s ease',
   });
 
@@ -38,7 +38,7 @@ export default function Sidebar({ isOpen, onClose }) {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.6)',
+            background: 'rgba(15, 23, 42, 0.4)',
             zIndex: 40,
             backdropFilter: 'blur(4px)',
           }}
@@ -48,7 +48,7 @@ export default function Sidebar({ isOpen, onClose }) {
       <aside
         style={{
           width: '260px',
-          background: 'rgba(10, 14, 23, 0.95)',
+          background: '#ffffff',
           borderRight: '1px solid var(--border-subtle)',
           display: 'flex',
           flexDirection: 'column',
@@ -57,19 +57,20 @@ export default function Sidebar({ isOpen, onClose }) {
           top: 0,
           height: '100vh',
           overflowY: 'auto',
+          boxShadow: '1px 0 3px rgba(15, 23, 42, 0.02)',
         }}
       >
         {/* Org Banner */}
         {user && (
           <div style={{
-            padding: '16px 20px',
+            padding: '18px 20px',
             borderBottom: '1px solid var(--border-subtle)',
-            background: 'rgba(255, 255, 255, 0.02)',
+            background: 'linear-gradient(180deg, #f0f7ff 0%, #ffffff 100%)',
           }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '4px' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#2563eb', letterSpacing: '0.05em', marginBottom: '4px' }}>
               AUTHENTICATED ENTITY
             </div>
-            <div style={{ fontWeight: '700', fontSize: '0.95rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user.organization?.name || user.name}
             </div>
             <div style={{ marginTop: '6px' }}>
@@ -80,7 +81,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
         {/* Navigation Sections */}
         <div style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', letterSpacing: '0.05em', padding: '8px 12px' }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', letterSpacing: '0.05em', padding: '8px 12px 4px' }}>
             CORE LEDGER
           </div>
 
@@ -111,7 +112,7 @@ export default function Sidebar({ isOpen, onClose }) {
           {/* Role Specific Menus */}
           {isRegulator && (
             <>
-              <div style={{ fontSize: '0.7rem', color: '#f59e0b', letterSpacing: '0.05em', padding: '14px 12px 6px' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#d97706', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
                 REGULATORY OVERSIGHT
               </div>
 
@@ -131,7 +132,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
           {isMfg && (
             <>
-              <div style={{ fontSize: '0.7rem', color: '#10b981', letterSpacing: '0.05em', padding: '14px 12px 6px' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#059669', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
                 MANUFACTURER WORKSPACE
               </div>
 
@@ -147,7 +148,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
           {isDist && (
             <>
-              <div style={{ fontSize: '0.7rem', color: '#a855f7', letterSpacing: '0.05em', padding: '14px 12px 6px' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#7c3aed', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
                 DISTRIBUTION LOGISTICS
               </div>
 
@@ -159,7 +160,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
           {isPharm && (
             <>
-              <div style={{ fontSize: '0.7rem', color: '#00f2fe', letterSpacing: '0.05em', padding: '14px 12px 6px' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#0284c7', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
                 PHARMACY DISPENSARY
               </div>
 
@@ -170,7 +171,7 @@ export default function Sidebar({ isOpen, onClose }) {
           )}
 
           {/* Account */}
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', letterSpacing: '0.05em', padding: '14px 12px 6px' }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
             SYSTEM
           </div>
 
@@ -197,9 +198,10 @@ export default function Sidebar({ isOpen, onClose }) {
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
+          background: '#f8fafc',
         }}>
           <span className="live-dot"></span>
-          <span>Ledger Connected (v2.6)</span>
+          <span style={{ fontWeight: '600', color: '#1e40af' }}>Ledger Connected (v2.6)</span>
         </div>
       </aside>
     </>

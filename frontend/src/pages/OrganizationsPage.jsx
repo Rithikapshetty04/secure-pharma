@@ -71,7 +71,7 @@ export default function OrganizationsPage() {
     <div style={{ maxWidth: '1200px', margin: '30px auto 80px', padding: '0 20px' }}>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+        <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: '#1e293b' }}>
           🏢 Pharmaceutical Organization Registry
         </h1>
         <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '4px' }}>
@@ -80,7 +80,7 @@ export default function OrganizationsPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px' }}>
+      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px', background: '#ffffff' }}>
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <input
             type="text"
@@ -91,10 +91,7 @@ export default function OrganizationsPage() {
               flex: 1,
               minWidth: '240px',
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           />
@@ -107,10 +104,7 @@ export default function OrganizationsPage() {
             }}
             style={{
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           >
@@ -129,10 +123,7 @@ export default function OrganizationsPage() {
             }}
             style={{
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           >
@@ -152,11 +143,11 @@ export default function OrganizationsPage() {
 
       {/* Directory Grid */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--accent-cyan)' }}>
+        <div style={{ textAlign: 'center', padding: '60px 0', color: '#2563eb', fontWeight: '600' }}>
           Loading organization registry...
         </div>
       ) : organizations.length === 0 ? (
-        <div className="glass-card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
+        <div className="glass-card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)', background: '#ffffff' }}>
           No organizations found matching criteria.
         </div>
       ) : (
@@ -166,22 +157,23 @@ export default function OrganizationsPage() {
           gap: '20px',
         }}>
           {organizations.map((org) => (
-            <div key={org._id} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div key={org._id} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', background: '#ffffff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                 <StatusBadge status={org.type} />
                 <StatusBadge status={org.status} />
               </div>
 
-              <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#1e3a8a', marginBottom: '4px' }}>
                 {org.name}
               </h3>
 
               <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '12px' }}>
-                Reg #: <strong style={{ color: '#fff', fontFamily: 'var(--font-mono)' }}>{org.registrationNumber || 'N/A'}</strong>
+                Reg #: <strong style={{ color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>{org.registrationNumber || 'N/A'}</strong>
               </div>
 
               <div style={{
-                background: 'rgba(255, 255, 255, 0.02)',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
                 padding: '12px',
                 borderRadius: 'var(--radius-sm)',
                 fontSize: '0.8rem',
@@ -192,16 +184,16 @@ export default function OrganizationsPage() {
               }}>
                 <div>
                   <span style={{ color: 'var(--text-dim)' }}>Address: </span>
-                  <span style={{ color: '#fff' }}>{org.address || 'Address pending'}</span>
+                  <span style={{ color: 'var(--text-heading)' }}>{org.address || 'Address pending'}</span>
                 </div>
                 <div>
                   <span style={{ color: 'var(--text-dim)' }}>Email: </span>
-                  <span style={{ color: 'var(--accent-cyan)' }}>{org.contactEmail}</span>
+                  <span style={{ color: '#2563eb', fontWeight: '600' }}>{org.contactEmail}</span>
                 </div>
                 {org.contactPhone && (
                   <div>
                     <span style={{ color: 'var(--text-dim)' }}>Phone: </span>
-                    <span style={{ color: '#fff' }}>{org.contactPhone}</span>
+                    <span style={{ color: 'var(--text-heading)' }}>{org.contactPhone}</span>
                   </div>
                 )}
               </div>
@@ -211,7 +203,7 @@ export default function OrganizationsPage() {
                   <button
                     onClick={() => handleUpdateStatus(org._id, org.name)}
                     className="btn btn-outline btn-sm"
-                    style={{ width: '100%', fontSize: '0.8rem' }}
+                    style={{ width: '100%', fontSize: '0.8rem', background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8' }}
                   >
                     🛡️ Manage Status & Compliance
                   </button>

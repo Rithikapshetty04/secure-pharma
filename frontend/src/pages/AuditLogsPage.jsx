@@ -45,7 +45,7 @@ export default function AuditLogsPage() {
           </span>
           <span className="live-dot"></span>
         </div>
-        <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+        <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: '#1e293b' }}>
           📋 Regulatory Audit & Compliance Ledger
         </h1>
         <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '4px' }}>
@@ -54,7 +54,7 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px' }}>
+      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px', background: '#ffffff' }}>
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <input
             type="text"
@@ -65,10 +65,7 @@ export default function AuditLogsPage() {
               flex: 1,
               minWidth: '240px',
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           />
@@ -81,10 +78,7 @@ export default function AuditLogsPage() {
             }}
             style={{
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           >
@@ -108,9 +102,9 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Table */}
-      <div className="glass-card" style={{ padding: '24px' }}>
+      <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--accent-cyan)' }}>
+          <div style={{ textAlign: 'center', padding: '50px 0', color: '#2563eb', fontWeight: '600' }}>
             Loading tamper-evident audit trail...
           </div>
         ) : logs.length === 0 ? (
@@ -137,7 +131,7 @@ export default function AuditLogsPage() {
                       <StatusBadge status={log.action} />
                     </td>
                     <td>
-                      <div style={{ fontWeight: '600' }}>{log.user?.name || 'System / Public'}</div>
+                      <div style={{ fontWeight: '600', color: '#1e3a8a' }}>{log.user?.name || 'System / Public'}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{log.user?.email || 'Public Client'}</div>
                     </td>
                     <td style={{ fontSize: '0.85rem' }}>

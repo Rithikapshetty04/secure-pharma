@@ -132,7 +132,7 @@ export default function DashboardPage() {
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+            <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: '#1e293b' }}>
               {isRegulator && 'Regulatory Command & Oversight'}
               {isMfg && 'Manufacturing & Serialization Hub'}
               {isDist && 'Wholesale Distribution & Transit Hub'}
@@ -141,7 +141,7 @@ export default function DashboardPage() {
             <StatusBadge status={user?.role} />
           </div>
           <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Connected Entity: <strong style={{ color: '#fff' }}>{user?.organization?.name || user?.name}</strong> • Node Status: <span style={{ color: '#10b981' }}>● Certified Active</span>
+            Connected Entity: <strong style={{ color: '#1e3a8a' }}>{user?.organization?.name || user?.name}</strong> • Node Status: <span style={{ color: '#059669', fontWeight: '600' }}>● Certified Active</span>
           </p>
         </div>
 
@@ -173,25 +173,25 @@ export default function DashboardPage() {
       {/* Metric Cards Grid */}
       <div className="stats-grid" style={{ marginBottom: '32px' }}>
         <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>{stats.batches}</div>
+          <div className="stat-value" style={{ color: '#2563eb' }}>{stats.batches}</div>
           <div className="stat-label">Total Batches Minted</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>Cryptographically Serialized</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-value" style={{ color: '#10b981' }}>{stats.products}</div>
+          <div className="stat-value" style={{ color: '#059669' }}>{stats.products}</div>
           <div className="stat-label">Formulary Drugs</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>Active Regulatory Codes</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-value" style={{ color: '#a855f7' }}>{stats.events}</div>
+          <div className="stat-value" style={{ color: '#7c3aed' }}>{stats.events}</div>
           <div className="stat-label">Custodial Events Logged</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>Chain-of-Custody Proofs</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-value" style={{ color: stats.pendingLicenses > 0 ? '#f59e0b' : '#10b981' }}>
+          <div className="stat-value" style={{ color: stats.pendingLicenses > 0 ? '#d97706' : '#059669' }}>
             {isRegulator ? stats.pendingLicenses : stats.organizations}
           </div>
           <div className="stat-label">
@@ -205,22 +205,22 @@ export default function DashboardPage() {
 
       {/* Regulator Priority Review Queue */}
       {isRegulator && pendingLicensesList.length > 0 && (
-        <div className="glass-card" style={{ padding: '24px', marginBottom: '32px', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+        <div className="glass-card" style={{ padding: '24px', marginBottom: '32px', border: '1px solid #fde68a', background: '#fffbeb' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
-              <h3 style={{ fontSize: '1.15rem', margin: 0, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ fontSize: '1.15rem', margin: 0, color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>⚠️</span> Priority License Review Queue
               </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+              <p style={{ fontSize: '0.8rem', color: '#78350f', marginTop: '2px' }}>
                 Organizations awaiting regulatory authorization
               </p>
             </div>
-            <Link to="/regulator/licenses" className="btn btn-outline btn-sm">
+            <Link to="/regulator/licenses" className="btn btn-outline btn-sm" style={{ background: '#ffffff' }}>
               View All Licenses →
             </Link>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
+          <div style={{ overflowX: 'auto', background: '#ffffff', borderRadius: 'var(--radius-sm)', border: '1px solid #fde68a' }}>
             <table className="data-table">
               <thead>
                 <tr>
@@ -236,12 +236,12 @@ export default function DashboardPage() {
                 {pendingLicensesList.slice(0, 5).map((lic) => (
                   <tr key={lic._id}>
                     <td>
-                      <strong>{lic.organization?.name || 'New Organization'}</strong>
+                      <strong style={{ color: 'var(--text-heading)' }}>{lic.organization?.name || 'New Organization'}</strong>
                     </td>
                     <td>
                       <StatusBadge status={lic.organization?.type || lic.licenseType} />
                     </td>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>{lic.licenseNumber}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '600' }}>{lic.licenseNumber}</td>
                     <td>
                       {lic.documentPath ? (
                         <button
@@ -263,7 +263,7 @@ export default function DashboardPage() {
                         <button
                           onClick={() => handleApproveLicense(lic._id)}
                           className="btn btn-primary btn-sm"
-                          style={{ fontSize: '0.75rem', padding: '4px 10px', background: '#10b981' }}
+                          style={{ fontSize: '0.75rem', padding: '4px 10px', background: '#059669' }}
                         >
                           ✓ Approve
                         </button>
@@ -291,10 +291,10 @@ export default function DashboardPage() {
         gap: '24px',
       }}>
         {/* Recent Batches */}
-        <div className="glass-card" style={{ padding: '24px' }}>
+        <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
-              <h3 style={{ fontSize: '1.1rem', margin: 0 }}>📦 Recent Production Batches</h3>
+              <h3 style={{ fontSize: '1.1rem', margin: 0, color: '#1e3a8a' }}>📦 Recent Production Batches</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
                 Latest cryptographically stamped lots
               </p>
@@ -317,14 +317,14 @@ export default function DashboardPage() {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    padding: '12px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid var(--border-subtle)',
+                    padding: '12px 14px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
                     borderRadius: 'var(--radius-sm)',
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff' }}>
+                    <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-heading)' }}>
                       {b.product?.name || 'Pharmaceutical Batch'}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
@@ -349,10 +349,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Live Custodial Events */}
-        <div className="glass-card" style={{ padding: '24px' }}>
+        <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
-              <h3 style={{ fontSize: '1.1rem', margin: 0 }}>⛓️ Live Custody Events</h3>
+              <h3 style={{ fontSize: '1.1rem', margin: 0, color: '#1e3a8a' }}>⛓️ Live Custody Events</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
                 Real-time chain transitions & verification scans
               </p>
@@ -372,16 +372,16 @@ export default function DashboardPage() {
                 <div
                   key={evt._id}
                   style={{
-                    padding: '12px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid var(--border-subtle)',
+                    padding: '12px 14px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
                     borderRadius: 'var(--radius-sm)',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <StatusBadge status={evt.eventType} />
-                      <strong style={{ fontSize: '0.85rem', color: '#fff' }}>
+                      <strong style={{ fontSize: '0.85rem', color: 'var(--text-heading)' }}>
                         {evt.batch?.product?.name || evt.batch?.batchNumber || 'Batch Lot'}
                       </strong>
                     </div>

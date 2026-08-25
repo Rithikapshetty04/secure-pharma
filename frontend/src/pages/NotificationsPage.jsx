@@ -43,7 +43,7 @@ export default function NotificationsPage() {
     <div style={{ maxWidth: '900px', margin: '30px auto 80px', padding: '0 20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: '#1e293b' }}>
             🔔 Notification Center
           </h1>
           <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '4px' }}>
@@ -67,9 +67,9 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      <div className="glass-card" style={{ padding: '24px' }}>
+      <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--accent-cyan)' }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#2563eb', fontWeight: '600' }}>
             Loading notification feed...
           </div>
         ) : notifications.length === 0 ? (
@@ -84,9 +84,9 @@ export default function NotificationsPage() {
                 onClick={() => !n.isRead && handleMarkOne(n._id)}
                 style={{
                   padding: '16px',
-                  background: n.isRead ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 242, 254, 0.08)',
-                  border: `1px solid ${n.isRead ? 'var(--border-subtle)' : 'rgba(0, 242, 254, 0.4)'}`,
-                  borderLeft: `4px solid ${n.isRead ? 'transparent' : 'var(--accent-cyan)'}`,
+                  background: n.isRead ? '#f8fafc' : '#eff6ff',
+                  border: `1px solid ${n.isRead ? '#e2e8f0' : '#bfdbfe'}`,
+                  borderLeft: `4px solid ${n.isRead ? 'transparent' : '#2563eb'}`,
                   borderRadius: 'var(--radius-sm)',
                   cursor: n.isRead ? 'default' : 'pointer',
                   display: 'flex',
@@ -98,7 +98,7 @@ export default function NotificationsPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <StatusBadge status={n.type} />
-                    <strong style={{ fontSize: '0.95rem', color: '#fff' }}>{n.title}</strong>
+                    <strong style={{ fontSize: '0.95rem', color: '#1e293b' }}>{n.title}</strong>
                   </div>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 8px' }}>
                     {n.message}
@@ -115,7 +115,7 @@ export default function NotificationsPage() {
                       handleMarkOne(n._id);
                     }}
                     className="btn btn-outline btn-sm"
-                    style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                    style={{ fontSize: '0.75rem', padding: '4px 8px', background: '#ffffff' }}
                   >
                     Mark Read
                   </button>

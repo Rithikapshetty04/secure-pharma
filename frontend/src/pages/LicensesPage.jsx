@@ -82,7 +82,7 @@ export default function LicensesPage() {
     <div style={{ maxWidth: '1200px', margin: '30px auto 80px', padding: '0 20px' }}>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+        <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: '#1e293b' }}>
           📜 Regulatory License Verification Queue
         </h1>
         <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '4px' }}>
@@ -91,7 +91,7 @@ export default function LicensesPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px' }}>
+      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px', background: '#ffffff' }}>
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <input
             type="text"
@@ -102,10 +102,7 @@ export default function LicensesPage() {
               flex: 1,
               minWidth: '240px',
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           />
@@ -118,10 +115,7 @@ export default function LicensesPage() {
             }}
             style={{
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           >
@@ -140,9 +134,9 @@ export default function LicensesPage() {
       </div>
 
       {/* Licenses Table */}
-      <div className="glass-card" style={{ padding: '24px' }}>
+      <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--accent-cyan)' }}>
+          <div style={{ textAlign: 'center', padding: '50px 0', color: '#2563eb', fontWeight: '600' }}>
             Loading license registry...
           </div>
         ) : licenses.length === 0 ? (
@@ -166,7 +160,7 @@ export default function LicensesPage() {
               <tbody>
                 {licenses.map((lic) => (
                   <tr key={lic._id}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: '#fff' }}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: '#1e3a8a' }}>
                       {lic.licenseNumber}
                     </td>
                     <td>
@@ -176,7 +170,7 @@ export default function LicensesPage() {
                     <td>
                       <StatusBadge status={lic.licenseType} />
                     </td>
-                    <td style={{ fontSize: '0.85rem', color: new Date(lic.expiryDate) < new Date() ? '#ef4444' : '#10b981' }}>
+                    <td style={{ fontSize: '0.85rem', color: new Date(lic.expiryDate) < new Date() ? '#dc2626' : '#059669', fontWeight: '600' }}>
                       {new Date(lic.expiryDate).toLocaleDateString()}
                     </td>
                     <td>
@@ -184,7 +178,7 @@ export default function LicensesPage() {
                         <button
                           onClick={() => setSelectedDoc(lic.documentPath)}
                           className="btn btn-outline btn-sm"
-                          style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                          style={{ fontSize: '0.75rem', padding: '2px 8px', background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8' }}
                         >
                           📄 View Document
                         </button>
@@ -201,7 +195,7 @@ export default function LicensesPage() {
                           <button
                             onClick={() => handleApprove(lic._id, lic.licenseNumber)}
                             className="btn btn-primary btn-sm"
-                            style={{ fontSize: '0.75rem', padding: '4px 10px', background: '#10b981' }}
+                            style={{ fontSize: '0.75rem', padding: '4px 10px', background: '#059669' }}
                           >
                             ✓ Approve
                           </button>

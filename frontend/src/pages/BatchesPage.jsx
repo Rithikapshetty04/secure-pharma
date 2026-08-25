@@ -132,7 +132,7 @@ export default function BatchesPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: '#1e293b' }}>
             📦 Pharmaceutical Batch Serialization & QR Ledger
           </h1>
           <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '4px' }}>
@@ -148,7 +148,7 @@ export default function BatchesPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px' }}>
+      <div className="glass-card" style={{ padding: '16px', marginBottom: '24px', background: '#ffffff' }}>
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <input
             type="text"
@@ -159,10 +159,7 @@ export default function BatchesPage() {
               flex: 1,
               minWidth: '240px',
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           />
@@ -175,10 +172,7 @@ export default function BatchesPage() {
             }}
             style={{
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              color: '#fff',
               fontSize: '0.85rem',
             }}
           >
@@ -200,9 +194,9 @@ export default function BatchesPage() {
       </div>
 
       {/* Batches Table */}
-      <div className="glass-card" style={{ padding: '24px' }}>
+      <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--accent-cyan)' }}>
+          <div style={{ textAlign: 'center', padding: '50px 0', color: '#2563eb', fontWeight: '600' }}>
             Loading serialized batch ledger...
           </div>
         ) : batches.length === 0 ? (
@@ -227,7 +221,7 @@ export default function BatchesPage() {
               <tbody>
                 {batches.map((b) => (
                   <tr key={b._id}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: '#fff' }}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: '#1e3a8a' }}>
                       {b.batchNumber}
                     </td>
                     <td>
@@ -242,7 +236,7 @@ export default function BatchesPage() {
                     <td style={{ fontSize: '0.85rem' }}>
                       {b.quantity?.toLocaleString()} {b.unit}
                     </td>
-                    <td style={{ fontSize: '0.85rem', color: new Date(b.expiryDate) < new Date() ? '#ef4444' : '#10b981' }}>
+                    <td style={{ fontSize: '0.85rem', color: new Date(b.expiryDate) < new Date() ? '#dc2626' : '#059669', fontWeight: '600' }}>
                       {new Date(b.expiryDate).toLocaleDateString()}
                     </td>
                     <td>
@@ -252,7 +246,7 @@ export default function BatchesPage() {
                       <button
                         onClick={() => setSelectedQRBatch(b)}
                         className="btn btn-outline btn-sm"
-                        style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                        style={{ fontSize: '0.75rem', padding: '4px 10px', background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8' }}
                       >
                         📱 View QR
                       </button>
@@ -262,7 +256,7 @@ export default function BatchesPage() {
                         <Link
                           to={`/verify/${b.qrIdentifier || b.batchNumber}`}
                           className="btn btn-primary btn-sm"
-                          style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                          style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                         >
                           Verify →
                         </Link>
@@ -294,20 +288,20 @@ export default function BatchesPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.25rem', margin: 0 }}>⚙️ Mint & Serialize Production Batch</h3>
+              <h3 style={{ fontSize: '1.25rem', margin: 0, color: '#1e3a8a' }}>⚙️ Mint & Serialize Production Batch</h3>
               <button onClick={() => setShowMintModal(false)} className="btn btn-outline btn-sm">✕</button>
             </div>
 
             <form onSubmit={handleMintSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                   SELECT FORMULARY PRODUCT *
                 </label>
                 <select
                   required
                   value={mintFormData.productId}
                   onChange={(e) => setMintFormData({ ...mintFormData, productId: e.target.value })}
-                  style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                 >
                   {products.map((p) => (
                     <option key={p._id} value={p._id}>
@@ -318,7 +312,7 @@ export default function BatchesPage() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                   UNIQUE BATCH NUMBER *
                 </label>
                 <input
@@ -327,13 +321,13 @@ export default function BatchesPage() {
                   value={mintFormData.batchNumber}
                   onChange={(e) => setMintFormData({ ...mintFormData, batchNumber: e.target.value })}
                   placeholder="e.g. BATCH-2026-AMOX-880"
-                  style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff', fontFamily: 'var(--font-mono)' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)' }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     MANUFACTURING DATE
                   </label>
                   <input
@@ -341,11 +335,11 @@ export default function BatchesPage() {
                     required
                     value={mintFormData.manufacturingDate}
                     onChange={(e) => setMintFormData({ ...mintFormData, manufacturingDate: e.target.value })}
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     EXPIRATION DATE *
                   </label>
                   <input
@@ -353,14 +347,14 @@ export default function BatchesPage() {
                     required
                     value={mintFormData.expiryDate}
                     onChange={(e) => setMintFormData({ ...mintFormData, expiryDate: e.target.value })}
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     PRODUCTION QUANTITY *
                   </label>
                   <input
@@ -369,11 +363,11 @@ export default function BatchesPage() {
                     min="1"
                     value={mintFormData.quantity}
                     onChange={(e) => setMintFormData({ ...mintFormData, quantity: Number(e.target.value) })}
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                     UNIT CLASSIFICATION
                   </label>
                   <input
@@ -381,13 +375,13 @@ export default function BatchesPage() {
                     value={mintFormData.unit}
                     onChange={(e) => setMintFormData({ ...mintFormData, unit: e.target.value })}
                     placeholder="e.g. Bottles, Vials, Boxes"
-                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                   CLEANROOM / MANUFACTURING LOCATION
                 </label>
                 <input
@@ -395,12 +389,12 @@ export default function BatchesPage() {
                   value={mintFormData.location}
                   onChange={(e) => setMintFormData({ ...mintFormData, location: e.target.value })}
                   placeholder="e.g. Cleanroom Facility #4, Cambridge MA"
-                  style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-dim)' }}>
                   STORAGE & TEMPERATURE SPECIFICATIONS
                 </label>
                 <input
@@ -408,7 +402,7 @@ export default function BatchesPage() {
                   value={mintFormData.storageRequirements}
                   onChange={(e) => setMintFormData({ ...mintFormData, storageRequirements: e.target.value })}
                   placeholder="e.g. Store at controlled room temp 15°C to 25°C"
-                  style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: '#fff' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                 />
               </div>
 
@@ -429,7 +423,7 @@ export default function BatchesPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.2rem', margin: 0 }}>QR Authenticity Seal</h3>
+              <h3 style={{ fontSize: '1.2rem', margin: 0, color: '#1e3a8a' }}>QR Authenticity Seal</h3>
               <button onClick={() => setSelectedQRBatch(null)} className="btn btn-outline btn-sm">✕</button>
             </div>
 
