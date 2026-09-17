@@ -176,7 +176,11 @@ export default function Navbar({ onToggleSidebar }) {
         {isAuthenticated ? (
           <>
             <Link
+<<<<<<< HEAD
               to={getDashboardPath()}
+=======
+              to={user ? (user.role === 'MANUFACTURER' ? '/manufacturer/dashboard' : user.role === 'DISTRIBUTOR' ? '/distributor/dashboard' : user.role === 'PHARMACY' ? '/pharmacy/dashboard' : '/admin/dashboard') : '/login'}
+>>>>>>> origin/main
               className="btn btn-pill btn-pill-outline btn-sm"
               style={{ padding: '8px 18px', fontSize: '0.875rem' }}
             >

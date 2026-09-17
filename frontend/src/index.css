@@ -495,6 +495,7 @@ html {
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
 }
 
+<<<<<<< HEAD
 /* ==========================================================================
    Secure Pharma — Registration Page Styles
    ========================================================================== */
@@ -1069,4 +1070,21 @@ html {
   line-height: 1.4;
 }
 
+=======
+/* Responsive Login Banner Helpers */
+@media (max-width: 900px) {
+  .desktop-only-banner {
+    display: none !important;
+  }
+  .mobile-only-header {
+    display: block !important;
+  }
+}
+@media (min-width: 901px) {
+  .mobile-only-header {
+    display: none !important;
+  }
+}
+
+>>>>>>> origin/main
 
