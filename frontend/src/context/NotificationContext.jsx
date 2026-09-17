@@ -14,9 +14,11 @@ export function NotificationProvider({ children }) {
     if (!isAuthenticated) {
       setNotifications([]);
       setUnreadCount(0);
+      setLoading(false);
       return;
     }
 
+    setLoading(true);
     try {
       const res = await api.getNotifications({ limit: 15 });
       if (res.success) {
@@ -25,6 +27,8 @@ export function NotificationProvider({ children }) {
       }
     } catch (err) {
       console.error('Failed to load notifications:', err);
+    } finally {
+      setLoading(false);
     }
   };
 

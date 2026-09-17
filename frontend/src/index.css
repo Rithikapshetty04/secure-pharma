@@ -495,3 +495,578 @@ html {
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
 }
 
+/* ==========================================================================
+   Secure Pharma — Registration Page Styles
+   ========================================================================== */
+
+.reg-page-wrapper {
+  min-height: calc(100vh - 72px);
+  position: relative;
+  background: linear-gradient(135deg, #e8f3fb 0%, #f0f7fe 50%, #e2effa 100%);
+  padding: 40px 20px 80px;
+  overflow: hidden;
+}
+
+.reg-container {
+  max-width: 860px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.reg-card {
+  background: #ffffff;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 12px 40px -8px rgba(15, 23, 42, 0.09), 0 4px 14px rgba(15, 23, 42, 0.04);
+  border: 1px solid #eef2f6;
+  padding: 44px 40px;
+  transition: all 0.25s ease;
+}
+
+@media (max-width: 640px) {
+  .reg-card {
+    padding: 28px 20px;
+    border-radius: var(--radius-lg);
+  }
+}
+
+/* Role Selector Cards */
+.role-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .role-selector-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.role-card {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 18px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  user-select: none;
+}
+
+.role-card:hover {
+  border-color: #93c5fd;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+
+.role-card.active {
+  border-color: #2563eb;
+  background: #f0f7ff;
+  box-shadow: 0 0 0 1px #2563eb, 0 6px 20px rgba(37, 99, 235, 0.12);
+}
+
+.role-card:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.role-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+  transition: transform 0.2s ease;
+}
+
+.role-card:hover .role-card-icon {
+  transform: scale(1.05);
+}
+
+.role-card.active .role-card-icon {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.3);
+}
+
+.role-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.role-card-desc {
+  font-size: 0.775rem;
+  color: #64748b;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.role-card-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.role-card.active .role-card-indicator {
+  border-color: #2563eb;
+  background: #2563eb;
+}
+
+.role-card.active .role-card-indicator::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+/* Form Section Styling */
+.form-section-block {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 22px 24px;
+  transition: border-color 0.2s ease;
+}
+
+@media (max-width: 640px) {
+  .form-section-block {
+    padding: 16px;
+  }
+}
+
+.form-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.section-number-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: #1d4ed8;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(29, 78, 216, 0.3);
+}
+
+.section-title {
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.section-subtitle {
+  font-size: 0.775rem;
+  color: #64748b;
+  font-weight: 400;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .section-subtitle {
+    display: none;
+  }
+}
+
+/* Field & Inputs */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field-required {
+  color: #dc2626;
+  margin-left: 2px;
+}
+
+.field-optional {
+  font-size: 0.725rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.field-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 8px !important;
+  border: 1px solid #cbd5e1 !important;
+  font-size: 0.875rem;
+  color: #0f172a !important;
+  background: #ffffff !important;
+  transition: all 0.15s ease;
+}
+
+.field-input:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+.field-input.has-error {
+  border-color: #ef4444 !important;
+  background-color: #fffbfa !important;
+}
+
+.field-input.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.field-input.is-valid {
+  border-color: #10b981 !important;
+}
+
+.field-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #dc2626;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.field-hint {
+  font-size: 0.725rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* License Dropzone */
+.license-dropzone {
+  border: 2px dashed #93c5fd;
+  background: #f8fbff;
+  border-radius: var(--radius-md);
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.license-dropzone:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+
+.license-dropzone.drag-active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+.license-dropzone.has-error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.license-dropzone-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin: 0 auto 12px;
+  transition: transform 0.2s ease;
+}
+
+.license-dropzone:hover .license-dropzone-icon {
+  transform: scale(1.08);
+}
+
+/* File Attached Card */
+.attached-file-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #059669;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.file-info-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  border: 1px solid #a7f3d0;
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+  word-break: break-all;
+}
+
+.file-meta {
+  font-size: 0.725rem;
+  color: #059669;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Password Strength & Criteria */
+.password-criteria-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.725rem;
+}
+
+.password-criteria-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #64748b;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.password-criteria-item.met {
+  color: #059669;
+  font-weight: 700;
+}
+
+.password-criteria-item.unmet {
+  color: #94a3b8;
+}
+
+.password-strength-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  margin-top: 6px;
+  overflow: hidden;
+  display: flex;
+}
+
+.strength-segment {
+  height: 100%;
+  flex: 1;
+  transition: background-color 0.3s ease;
+}
+
+.strength-weak {
+  background: #f87171;
+}
+
+.strength-good {
+  background: #60a5fa;
+}
+
+.strength-strong {
+  background: #34d399;
+}
+
+/* Submission Progress Banner */
+.submission-progress-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.spinner-pulse {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #bfdbfe;
+  border-top-color: #1d4ed8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Success Confirmation Panel */
+.success-panel-card {
+  background: #ffffff;
+  border-radius: var(--radius-xl);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 40px -8px rgba(15, 23, 42, 0.08);
+  padding: 44px 36px;
+  text-align: center;
+}
+
+.success-icon-badge {
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.28);
+}
+
+.success-summary-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 20px;
+  text-align: left;
+  margin: 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.summary-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.summary-value {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.roadmap-steps-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 24px 0;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .roadmap-steps-container {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+.roadmap-step-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step-num {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #1d4ed8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.step-title {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.step-desc {
+  font-size: 0.725rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+

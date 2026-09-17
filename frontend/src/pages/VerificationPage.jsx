@@ -4,27 +4,30 @@ import { api } from '../api';
 import StatusBadge from '../components/StatusBadge';
 import Timeline from '../components/Timeline';
 import QRCodeGenerator from '../components/QRCodeGenerator';
+import QRCodeScanner from '../components/QRCodeScanner';
 
 export default function VerificationPage() {
-  const { identifier } = useParams();
+  const { identifier, batchId } = useParams();
+  const activeId = identifier || batchId || '';
   const navigate = useNavigate();
 
-  const [inputVal, setInputVal] = useState(identifier || '');
+  const [inputVal, setInputVal] = useState(activeId);
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(activeId));
   const [error, setError] = useState(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   const performVerification = async (targetId) => {
-    if (!targetId) return;
+    if (!targetId || !targetId.trim()) return;
     setLoading(true);
     setError(null);
 
     try {
-      const res = await api.verifyProduct(targetId);
+      const res = await api.verifyProduct(targetId.trim());
       if (res.success) {
         setData(res);
       } else {
-        setError(res.message || 'Verification service failed.');
+        setError(res.message || 'Verification service query failed.');
       }
     } catch (err) {
       setError(err.message || 'Unable to connect to verification ledger.');
@@ -34,11 +37,14 @@ export default function VerificationPage() {
   };
 
   useEffect(() => {
-    if (identifier) {
-      setInputVal(identifier);
-      performVerification(identifier);
+    if (activeId) {
+      setInputVal(activeId);
+      performVerification(activeId);
+    } else {
+      setData(null);
+      setLoading(false);
     }
-  }, [identifier]);
+  }, [activeId]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -87,7 +93,7 @@ export default function VerificationPage() {
       default:
         return {
           title: 'NO REGISTERED LEDGER RECORD',
-          subtitle: 'Identifier was not found. This product may be unregistered or counterfeit.',
+          subtitle: 'Identifier was not found in registry. This product may be counterfeit or unregistered.',
           color: '#475569',
           icon: '❌',
           bg: '#f8fafc',
@@ -99,27 +105,52 @@ export default function VerificationPage() {
   const statusConfig = data ? getResultHeader(data.status) : null;
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '40px auto 80px', padding: '0 20px' }}>
-      {/* Search Header */}
+    <div style={{ maxWidth: '1100px', margin: '30px auto 80px', padding: '0 20px' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
+          🔍 Pharmaceutical Authenticity Verification
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '640px', margin: '0 auto' }}>
+          Enter a Batch Lot Number or QR Identifier to verify licensing, cold chain integrity, and supply chain provenance.
+        </p>
+      </div>
+
+      {/* Search & Scanner Toggle Form */}
       <div className="glass-card" style={{ padding: '24px', marginBottom: '28px', background: '#ffffff' }}>
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px' }}>
+        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <input
             type="text"
             required
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            placeholder="Search by QR identifier (e.g. SP-...) or Batch Number..."
+            placeholder="Enter Batch Lot Number (e.g. BATCH-2026-AMOX-880) or QR Identifier..."
             style={{
               flex: 1,
+              minWidth: '280px',
               padding: '12px 16px',
               borderRadius: 'var(--radius-sm)',
               fontSize: '0.95rem',
             }}
           />
           <button type="submit" disabled={loading} className="btn btn-primary">
-            {loading ? 'Verifying...' : 'Verify Product'}
+            {loading ? 'Verifying...' : 'Verify Authenticity'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowScanner(!showScanner)}
+            className="btn btn-outline"
+            style={{ padding: '12px 18px' }}
+          >
+            {showScanner ? '✕ Close Scanner' : '📷 Scan QR'}
           </button>
         </form>
+
+        {showScanner && (
+          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-subtle)' }}>
+            <QRCodeScanner />
+          </div>
+        )}
       </div>
 
       {loading && (
@@ -129,41 +160,68 @@ export default function VerificationPage() {
             Executing 9-Point Distributed Verification Algorithm...
           </div>
           <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '6px' }}>
-            Verifying manufacturer license, expiration, recall state, and custody trail
+            Checking manufacturer approval, license validity, expiry date, recall status, and custody trail.
           </p>
         </div>
       )}
 
       {error && !loading && (
-        <div className="glass-card" style={{ padding: '30px', textAlign: 'center', color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚠️</div>
-          <h3>Verification Query Failed</h3>
+        <div
+          className="glass-card"
+          style={{
+            padding: '30px',
+            textAlign: 'center',
+            color: '#b91c1c',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+          }}
+        >
+          <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>⚠️</div>
+          <h3 style={{ marginBottom: '8px' }}>Verification Query Failed</h3>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{error}</p>
         </div>
       )}
 
-      {data && !loading && (
+      {data && !loading && statusConfig && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-          {/* Trust Result Banner */}
-          <div style={{
-            background: statusConfig.bg,
-            border: `2px solid ${statusConfig.border}`,
-            borderRadius: 'var(--radius-lg)',
-            padding: '32px 24px',
-            textAlign: 'center',
-            boxShadow: 'var(--shadow-md)',
-          }}>
+          {/* Result Banner */}
+          <div
+            style={{
+              background: statusConfig.bg,
+              border: `2px solid ${statusConfig.border}`,
+              borderRadius: 'var(--radius-lg)',
+              padding: '32px 24px',
+              textAlign: 'center',
+              boxShadow: 'var(--shadow-md)',
+            }}
+          >
             <div style={{ fontSize: '3rem', marginBottom: '8px' }}>{statusConfig.icon}</div>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: statusConfig.color, marginBottom: '6px' }}>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: '900', color: statusConfig.color, marginBottom: '6px' }}>
               {statusConfig.title}
             </h2>
-            <p style={{ fontSize: '1rem', color: '#1e293b', maxWidth: '680px', margin: '0 auto 16px', lineHeight: 1.5, fontWeight: '500' }}>
+            <p
+              style={{
+                fontSize: '1rem',
+                color: '#1e293b',
+                maxWidth: '680px',
+                margin: '0 auto 16px',
+                lineHeight: 1.5,
+                fontWeight: '500',
+              }}
+            >
               {data.message}
             </p>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
               <StatusBadge status={data.status} />
               {data.batch?.batchNumber && (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-dim)', fontWeight: '600' }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-dim)',
+                    fontWeight: '600',
+                  }}
+                >
                   Batch #{data.batch.batchNumber}
                 </span>
               )}
@@ -173,18 +231,29 @@ export default function VerificationPage() {
           {/* 9-Point Verification Checklist */}
           {data.checks && Object.keys(data.checks).length > 0 && (
             <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#1e3a8a' }}>
+              <h3
+                style={{
+                  fontSize: '1.1rem',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: '#1e3a8a',
+                }}
+              >
                 <span>🛡️</span> 9-Point Regulatory Integrity Checklist
               </h3>
 
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '12px',
-              }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '12px',
+                }}
+              >
                 {[
                   { key: 'productExists', label: 'Formulary Drug Registered' },
-                  { key: 'batchExists', label: 'Batch Hashed on Ledger' },
+                  { key: 'batchExists', label: 'Batch Verified on Ledger' },
                   { key: 'manufacturerVerified', label: 'Manufacturer Verified & Approved' },
                   { key: 'licenseValid', label: 'Regulatory License Active & Unexpired' },
                   { key: 'batchNotExpired', label: 'Product Within Expiration Window' },
@@ -208,7 +277,9 @@ export default function VerificationPage() {
                         fontSize: '0.85rem',
                       }}
                     >
-                      <span style={{ color: passed ? '#065f46' : '#991b1b', fontWeight: '500' }}>{item.label}</span>
+                      <span style={{ color: passed ? '#065f46' : '#991b1b', fontWeight: '500' }}>
+                        {item.label}
+                      </span>
                       <span style={{ fontWeight: '700', color: passed ? '#047857' : '#b91c1c' }}>
                         {passed ? '✓ PASSED' : '✕ FAILED'}
                       </span>
@@ -221,12 +292,14 @@ export default function VerificationPage() {
 
           {/* Details Grid */}
           {data.product && data.batch && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '24px',
-            }}>
-              {/* Product Card */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: '24px',
+              }}
+            >
+              {/* Product Specifications Card */}
               <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: '#1d4ed8' }}>
                   💊 Pharmaceutical Specifications
@@ -234,37 +307,55 @@ export default function VerificationPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
                   <div>
-                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>DRUG NAME</span>
-                    <strong style={{ fontSize: '1.05rem', color: 'var(--text-heading)' }}>{data.product.name}</strong>
+                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                      DRUG NAME
+                    </span>
+                    <strong style={{ fontSize: '1.05rem', color: 'var(--text-heading)' }}>
+                      {data.product.name}
+                    </strong>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>GENERIC NAME</span>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                        GENERIC NAME
+                      </span>
                       <strong style={{ color: 'var(--text-heading)' }}>{data.product.genericName || 'N/A'}</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>BRAND NAME</span>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                        BRAND NAME
+                      </span>
                       <strong style={{ color: 'var(--text-heading)' }}>{data.product.brandName || 'N/A'}</strong>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>DOSAGE & STRENGTH</span>
-                      <strong style={{ color: 'var(--text-heading)' }}>{data.product.dosageForm} ({data.product.strength})</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                        DOSAGE & STRENGTH
+                      </span>
+                      <strong style={{ color: 'var(--text-heading)' }}>
+                        {data.product.dosageForm} ({data.product.strength})
+                      </strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>PRODUCT CODE / NDC</span>
-                      <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>{data.product.productCode}</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                        PRODUCT CODE / NDC
+                      </span>
+                      <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+                        {data.product.productCode}
+                      </strong>
                     </div>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>STORAGE CRITERIA</span>
+                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                      STORAGE CRITERIA
+                    </span>
                     <span style={{ color: 'var(--text-muted)' }}>{data.product.storageRequirements}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Batch & Manufacturer Card */}
+              {/* Batch & Manufacturer Credentials */}
               <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: '#059669' }}>
                   🏭 Batch & Manufacturer Credentials
@@ -272,33 +363,55 @@ export default function VerificationPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
                   <div>
-                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>MANUFACTURER</span>
-                    <strong style={{ fontSize: '1.05rem', color: 'var(--text-heading)' }}>{data.manufacturer?.name}</strong>
+                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                      MANUFACTURER
+                    </span>
+                    <strong style={{ fontSize: '1.05rem', color: 'var(--text-heading)' }}>
+                      {data.manufacturer?.name}
+                    </strong>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>LICENSE NUMBER</span>
-                      <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>{data.manufacturer?.licenseNumber}</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                        LICENSE NUMBER
+                      </span>
+                      <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+                        {data.manufacturer?.licenseNumber}
+                      </strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>LICENSE STATUS</span>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                        LICENSE STATUS
+                      </span>
                       <StatusBadge status={data.manufacturer?.licenseStatus} />
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>MANUFACTURING DATE</span>
-                      <strong style={{ color: 'var(--text-heading)' }}>{new Date(data.batch.manufacturingDate).toLocaleDateString()}</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                        MANUFACTURING DATE
+                      </span>
+                      <strong style={{ color: 'var(--text-heading)' }}>
+                        {new Date(data.batch.manufacturingDate).toLocaleDateString()}
+                      </strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>EXPIRATION DATE</span>
-                      <strong style={{ color: new Date(data.batch.expiryDate) < new Date() ? '#dc2626' : '#059669' }}>
+                      <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                        EXPIRATION DATE
+                      </span>
+                      <strong
+                        style={{
+                          color: new Date(data.batch.expiryDate) < new Date() ? '#dc2626' : '#059669',
+                        }}
+                      >
                         {new Date(data.batch.expiryDate).toLocaleDateString()}
                       </strong>
                     </div>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>ISSUING REGULATOR</span>
+                    <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem', fontWeight: '700' }}>
+                      REGULATORY AUTHORITY
+                    </span>
                     <span style={{ color: 'var(--text-muted)' }}>{data.manufacturer?.issuingAuthority}</span>
                   </div>
                 </div>
@@ -306,10 +419,12 @@ export default function VerificationPage() {
             </div>
           )}
 
-          {/* QR Code & Direct Proof */}
+          {/* QR Code */}
           {data.batch && (
             <div className="glass-card" style={{ padding: '24px', textAlign: 'center', background: '#ffffff' }}>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: '#1e3a8a' }}>Digital QR Authenticity Stamp</h3>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: '#1e3a8a' }}>
+                Digital QR Authenticity Stamp
+              </h3>
               <QRCodeGenerator
                 identifier={data.batch.qrIdentifier || data.batch.batchNumber}
                 batchNumber={data.batch.batchNumber}
@@ -319,18 +434,25 @@ export default function VerificationPage() {
             </div>
           )}
 
-          {/* Chronological Custodial Provenance */}
+          {/* Supply Chain History Timeline */}
           <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px',
+              }}
+            >
               <div>
-                <h3 style={{ fontSize: '1.2rem', margin: 0, color: '#1e3a8a' }}>⛓️ Complete Supply Chain Provenance</h3>
+                <h3 style={{ fontSize: '1.2rem', margin: 0, color: '#1e3a8a' }}>
+                  ⛓️ Complete Supply Chain Provenance Timeline
+                </h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                  Audited custodial handover checkpoints
+                  Manufacturer ➔ Wholesale Distributor ➔ Pharmacy Dispensary Handover Checkpoints
                 </p>
               </div>
-              <span className="badge badge-info">
-                {data.timeline?.length || 0} Checkpoints
-              </span>
+              <span className="badge badge-info">{data.timeline?.length || 0} Checkpoints</span>
             </div>
 
             <Timeline events={data.timeline} />

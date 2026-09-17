@@ -76,6 +76,21 @@ export default function PendingVerificationPage() {
         </p>
 
         {/* Live Status Card */}
+        {error && (
+          <div style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#dc2626',
+            borderRadius: 'var(--radius-md)',
+            padding: '16px',
+            textAlign: 'left',
+            marginBottom: '24px',
+            fontSize: '0.85rem',
+          }}>
+            <strong>Notice:</strong> {error}
+          </div>
+        )}
+
         {statusData && (
           <div style={{
             background: '#f8fafc',

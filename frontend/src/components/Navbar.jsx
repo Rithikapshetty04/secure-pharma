@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useCart } from '../context/CartContext';
 import StatusBadge from './StatusBadge';
 
-export default function Navbar({ onToggleSidebar, isLanding = false }) {
+export default function Navbar({ onToggleSidebar }) {
   const { user, isAuthenticated, logout } = useAuth();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { cartCount } = useCart();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
@@ -15,6 +17,24 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const getDashboardPath = () => {
+    if (!user) return '/dashboard';
+    switch (user.role) {
+      case 'MANUFACTURER':
+        return '/manufacturer/dashboard';
+      case 'DISTRIBUTOR':
+        return '/distributor/dashboard';
+      case 'PHARMACY':
+        return '/pharmacy/dashboard';
+      case 'ADMIN':
+      case 'SUPER_ADMIN':
+      case 'REGULATOR':
+        return '/admin/dashboard';
+      default:
+        return '/dashboard';
+    }
   };
 
   const scrollToSection = (e, sectionId) => {
@@ -68,7 +88,6 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
             gap: '10px',
           }}
         >
-          {/* Blue Shield Icon */}
           <div
             style={{
               width: '36px',
@@ -110,15 +129,22 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
         </Link>
       </div>
 
-      {/* Middle: Public Navigation Links */}
+      {/* Middle: Public Navigation Links (or quick public verifier) */}
       <nav
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '28px',
+          gap: '24px',
         }}
         className="desktop-nav"
       >
+        <Link
+          to="/verify"
+          className="nav-link-custom"
+          style={{ color: '#1d4ed8', fontWeight: '600', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          🔍 Public QR Verifier
+        </Link>
         <a
           href="#features"
           onClick={(e) => scrollToSection(e, 'features')}
@@ -150,12 +176,53 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
         {isAuthenticated ? (
           <>
             <Link
-              to="/dashboard"
+              to={getDashboardPath()}
               className="btn btn-pill btn-pill-outline btn-sm"
               style={{ padding: '8px 18px', fontSize: '0.875rem' }}
             >
               📊 Dashboard
             </Link>
+
+            {/* Pharmacy-Only Cart Icon */}
+            {user?.role === 'PHARMACY' && (
+              <Link
+                to="/pharmacy/cart"
+                className="btn btn-outline btn-sm"
+                style={{
+                  position: 'relative',
+                  padding: '7px 12px',
+                  borderRadius: '9999px',
+                  borderColor: '#93c5fd',
+                  background: '#eff6ff',
+                  color: '#1d4ed8',
+                }}
+                aria-label="Pharmacy Cart"
+              >
+                🛒
+                {cartCount > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      background: '#2563eb',
+                      color: '#fff',
+                      borderRadius: '50%',
+                      fontSize: '0.65rem',
+                      fontWeight: '700',
+                      width: '18px',
+                      height: '18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 0 8px rgba(37, 99, 235, 0.5)',
+                    }}
+                  >
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* Notification Bell */}
             <div style={{ position: 'relative' }}>
@@ -302,7 +369,7 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
                   </div>
 
                   <Link
-                    to="/dashboard"
+                    to={getDashboardPath()}
                     onClick={() => setShowUserMenu(false)}
                     className="btn btn-outline btn-sm"
                     style={{ justifyContent: 'flex-start', border: 'none', background: 'transparent' }}

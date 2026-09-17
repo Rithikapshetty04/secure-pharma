@@ -1,7 +1,7 @@
 export const APP_CONFIG = {
   APP_NAME: "Secure Pharma",
   APP_DESCRIPTION:
-    "Blockchain-based pharmaceutical supply chain traceability",
+    "Pharmaceutical supply chain traceability and authenticity verification system",
 
   LICENSE: {
     MAX_FILE_SIZE_MB: 10,

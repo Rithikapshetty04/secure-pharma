@@ -1,15 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import StatusBadge from './StatusBadge';
 
 export default function Timeline({ events = [] }) {
-  const [copiedHash, setCopiedHash] = useState(null);
-
-  const copyToClipboard = (text, id) => {
-    navigator.clipboard.writeText(text);
-    setCopiedHash(id);
-    setTimeout(() => setCopiedHash(null), 2000);
-  };
-
   if (!events || events.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-dim)' }}>
@@ -93,41 +85,9 @@ export default function Timeline({ events = [] }) {
               </div>
 
               {evt.notes && (
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px', fontStyle: 'italic' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0, fontStyle: 'italic' }}>
                   "{evt.notes}"
                 </p>
-              )}
-
-              {/* Transaction Hash */}
-              {evt.transactionHash && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-dim)',
-                  width: 'fit-content',
-                }}>
-                  <span>Hash: {evt.transactionHash.slice(0, 16)}...{evt.transactionHash.slice(-8)}</span>
-                  <button
-                    onClick={() => copyToClipboard(evt.transactionHash, evt._id || idx)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#2563eb',
-                      cursor: 'pointer',
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                    }}
-                  >
-                    {copiedHash === (evt._id || idx) ? '✓ Copied' : 'Copy'}
-                  </button>
-                </div>
               )}
             </div>
           </div>

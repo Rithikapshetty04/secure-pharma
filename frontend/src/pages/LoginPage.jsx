@@ -1,27 +1,23 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState('Admin');
+  const [email, setEmail] = useState('mfg@apexbiopharma.com');
+  const [password, setPassword] = useState('Mfg@123456');
+  const [selectedRole, setSelectedRole] = useState('Manufacturer');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const from = location.state?.from?.pathname || '/dashboard';
 
   const roleCredentials = {
     Admin: { email: 'superadmin@securepharma.gov', pass: 'SuperAdmin@123456' },
     Manufacturer: { email: 'mfg@apexbiopharma.com', pass: 'Mfg@123456' },
     Distributor: { email: 'logistics@novalog.com', pass: 'Dist@123456' },
     Pharmacy: { email: 'care@medlifepharma.com', pass: 'Pharm@123456' },
-    Customer: { email: 'regulator@securepharma.gov', pass: 'Regulator@123456' },
   };
 
   const handleRoleChange = (e) => {
@@ -34,6 +30,23 @@ export default function LoginPage() {
     }
   };
 
+  const getRoleDestination = (role) => {
+    switch (role) {
+      case 'MANUFACTURER':
+        return '/manufacturer/dashboard';
+      case 'DISTRIBUTOR':
+        return '/distributor/dashboard';
+      case 'PHARMACY':
+        return '/pharmacy/dashboard';
+      case 'ADMIN':
+      case 'SUPER_ADMIN':
+      case 'REGULATOR':
+        return '/admin/dashboard';
+      default:
+        return '/dashboard';
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -41,17 +54,20 @@ export default function LoginPage() {
 
     try {
       const res = await login(email, password);
-      if (res.success) {
-        navigate(from, { replace: true });
+      if (res.success && res.user) {
+        const dest = getRoleDestination(res.user.role);
+        navigate(dest, { replace: true });
       } else {
         if (res.accountStatus === 'PENDING' || res.accountStatus === 'UNDER_REVIEW') {
           navigate(`/pending-verification?userId=${res.userId || ''}&email=${encodeURIComponent(email)}`);
+        } else if (res.accountStatus === 'REJECTED') {
+          setError('Your registration application has been rejected by the regulatory administrator.');
         } else {
           setError(res.message || 'Authentication failed. Please check credentials.');
         }
       }
     } catch (err) {
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err.message || 'An unexpected error occurred during authentication.');
     } finally {
       setLoading(false);
     }
@@ -70,7 +86,7 @@ export default function LoginPage() {
         overflow: 'hidden',
       }}
     >
-      {/* Background Isometric Wireframe Hexagons / Blockchain Cubes */}
+      {/* Background Decorative SVG Graphic */}
       <svg
         style={{
           position: 'absolute',
@@ -88,7 +104,6 @@ export default function LoginPage() {
         <polygon points="120,50 165,75 165,125 120,150 75,125 75,75" stroke="#60a5fa" strokeWidth="1.5" />
         <path d="M120,50 L120,150 M120,150 L75,125 M120,150 L165,125" stroke="#93c5fd" strokeWidth="1.5" />
         <polygon points="120,180 180,215 180,285 120,320 60,285 60,215" stroke="#bfdbfe" strokeWidth="1.5" />
-        <path d="M120,215 L120,320 M120,268 L60,233 M120,268 L180,233" stroke="#bfdbfe" strokeWidth="1" strokeDasharray="3 3" />
       </svg>
 
       <svg
@@ -107,14 +122,12 @@ export default function LoginPage() {
         <polygon points="130,25 210,70 210,160 130,205 50,160 50,70" stroke="#93c5fd" strokeWidth="2" />
         <polygon points="130,60 185,90 185,150 130,180 75,150 75,90" stroke="#3b82f6" strokeWidth="1.8" />
         <polygon points="130,85 160,102 160,138 130,155 100,138 100,102" fill="#dbeafe" fillOpacity="0.5" stroke="#2563eb" strokeWidth="1.5" />
-        <path d="M130,85 L130,155 M130,120 L100,102 M130,120 L160,102" stroke="#2563eb" strokeWidth="1.2" />
-        <polygon points="130,210 200,250 200,330 130,370 60,330 60,250" stroke="#bfdbfe" strokeWidth="1.5" />
       </svg>
 
       {/* Main Login Card */}
       <div
         style={{
-          maxWidth: '400px',
+          maxWidth: '420px',
           width: '100%',
           padding: '36px 32px 30px',
           background: '#ffffff',
@@ -126,30 +139,30 @@ export default function LoginPage() {
         }}
       >
         {/* Brand Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '28px' }}>
-          {/* Green & Blue Hexagon Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '24px' }}>
           <div
             style={{
-              width: '34px',
-              height: '34px',
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              boxShadow: '0 2px 10px rgba(29, 78, 216, 0.28)',
             }}
           >
-            <svg width="34" height="34" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Green top hexagon half */}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
-                d="M20 4L34 12V22L20 14L6 22V12L20 4Z"
-                fill="#10b981"
+                d="M12 2L4 5.5V11.5C4 16.5 7.5 21.1 12 22.5C16.5 21.1 20 16.5 20 11.5V5.5L12 2Z"
+                fill="white"
+                fillOpacity="0.25"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-              {/* Blue bottom hexagon half */}
-              <path
-                d="M20 26L6 18V28L20 36L34 28V18L20 26Z"
-                fill="#1d4ed8"
-              />
-              {/* Inner geometric cube knot */}
-              <circle cx="20" cy="20" r="4.5" fill="#ffffff" stroke="#0f172a" strokeWidth="1.5" />
+              <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
             </svg>
           </div>
 
@@ -165,6 +178,10 @@ export default function LoginPage() {
             Secure Pharma
           </h2>
         </div>
+
+        <p style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '20px' }}>
+          Sign in to your authenticated stakeholder portal
+        </p>
 
         {error && (
           <div
@@ -183,25 +200,22 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Email Field */}
+          {/* Quick Demo Role Selector */}
           <div>
             <label
               style={{
                 display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: '600',
+                fontSize: '0.8rem',
+                fontWeight: '700',
                 marginBottom: '6px',
                 color: '#1e293b',
               }}
             >
-              Email
+              Portal Role (Quick Select)
             </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+            <select
+              value={selectedRole}
+              onChange={handleRoleChange}
               style={{
                 width: '100%',
                 padding: '10px 14px',
@@ -209,7 +223,43 @@ export default function LoginPage() {
                 border: '1px solid #cbd5e1',
                 fontSize: '0.9rem',
                 color: '#0f172a',
-                outline: 'none',
+                background: '#ffffff',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="Manufacturer">Manufacturer</option>
+              <option value="Distributor">Distributor</option>
+              <option value="Pharmacy">Pharmacy</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+
+          {/* Email Field */}
+          <div>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.8rem',
+                fontWeight: '700',
+                marginBottom: '6px',
+                color: '#1e293b',
+              }}
+            >
+              Official Email Address
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@organization.com"
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '0.9rem',
+                color: '#0f172a',
               }}
             />
           </div>
@@ -219,8 +269,8 @@ export default function LoginPage() {
             <label
               style={{
                 display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: '600',
+                fontSize: '0.8rem',
+                fontWeight: '700',
                 marginBottom: '6px',
                 color: '#1e293b',
               }}
@@ -233,7 +283,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder="••••••••••••"
                 style={{
                   width: '100%',
                   padding: '10px 38px 10px 14px',
@@ -241,7 +291,6 @@ export default function LoginPage() {
                   border: '1px solid #cbd5e1',
                   fontSize: '0.9rem',
                   color: '#0f172a',
-                  outline: 'none',
                 }}
               />
               <button
@@ -263,138 +312,33 @@ export default function LoginPage() {
                 }}
                 aria-label="Toggle password visibility"
               >
-                {showPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                )}
+                {showPassword ? '👁️' : '🔒'}
               </button>
             </div>
           </div>
 
-          {/* Select Role Field */}
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: '600',
-                marginBottom: '6px',
-                color: '#1e293b',
-              }}
-            >
-              Select Role
-            </label>
-            <div style={{ position: 'relative' }}>
-              <select
-                value={selectedRole}
-                onChange={handleRoleChange}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '0.9rem',
-                  color: '#0f172a',
-                  appearance: 'none',
-                  background: '#ffffff',
-                  cursor: 'pointer',
-                }}
-              >
-                <option value="Admin">Admin</option>
-                <option value="Manufacturer">Manufacturer</option>
-                <option value="Distributor">Distributor</option>
-                <option value="Pharmacy">Pharmacy</option>
-                <option value="Customer">Customer</option>
-              </select>
-              <div
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none',
-                  color: '#64748b',
-                  fontSize: '0.75rem',
-                }}
-              >
-                ▼
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons: Login & Register */}
-          <div
+          {/* Login Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary"
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
-              marginTop: '8px',
+              padding: '12px 0',
+              fontWeight: '700',
+              fontSize: '0.95rem',
+              marginTop: '4px',
             }}
           >
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '10px 0',
-                background: '#1d4ed8',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '6px',
-                fontWeight: '600',
-                fontSize: '0.95rem',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1e40af')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
-            >
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/register')}
-              style={{
-                padding: '10px 0',
-                background: '#1d4ed8',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '6px',
-                fontWeight: '600',
-                fontSize: '0.95rem',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1e40af')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
-            >
-              Register
-            </button>
-          </div>
+            {loading ? 'Authenticating...' : 'Sign In to Dashboard'}
+          </button>
         </form>
 
-        {/* Forgot Password Link */}
-        <div style={{ textAlign: 'center', marginTop: '22px' }}>
-          <Link
-            to="/forgot-password"
-            style={{
-              fontSize: '0.85rem',
-              fontWeight: '600',
-              color: '#059669',
-              textDecoration: 'none',
-              transition: 'color 0.2s',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#047857')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#059669')}
-          >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', fontSize: '0.85rem' }}>
+          <Link to="/forgot-password" style={{ color: '#059669', fontWeight: '600', textDecoration: 'none' }}>
             Forgot Password?
+          </Link>
+          <Link to="/register" style={{ color: '#2563eb', fontWeight: '700', textDecoration: 'none' }}>
+            Register Entity →
           </Link>
         </div>
       </div>

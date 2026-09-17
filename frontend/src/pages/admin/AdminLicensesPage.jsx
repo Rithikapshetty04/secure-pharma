@@ -1,28 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api';
-import { useAuth } from '../context/AuthContext';
-import StatusBadge from '../components/StatusBadge';
-import DocumentViewerModal from '../components/DocumentViewerModal';
+import { api } from '../../api';
+import StatusBadge from '../../components/StatusBadge';
+import DocumentViewerModal from '../../components/DocumentViewerModal';
 
-export default function LicensesPage() {
-  const { user } = useAuth();
+export default function AdminLicensesPage() {
   const [licenses, setLicenses] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('');
   const [selectedDoc, setSelectedDoc] = useState(null);
-
-  const isRegulator = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'REGULATOR';
 
   const loadLicenses = async () => {
     setLoading(true);
     try {
-      const res = await api.getLicenses({ page, limit: 12, search, status });
+      const res = await api.getLicenses({ limit: 100, status: statusFilter });
       if (res.success) {
         setLicenses(res.licenses);
-        setTotal(res.total);
       }
     } catch (err) {
       console.error('Error fetching licenses:', err);
@@ -33,22 +25,16 @@ export default function LicensesPage() {
 
   useEffect(() => {
     loadLicenses();
-  }, [page, status]);
+  }, [statusFilter]);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    setPage(1);
-    loadLicenses();
-  };
-
-  const handleApprove = async (id, licNum) => {
-    const remarks = window.prompt(`Approve license #${licNum}. Enter optional audit remarks:`, 'Full cGMP/GDP compliance verified.');
+  const handleApprove = async (id, licNumber) => {
+    const remarks = window.prompt(`Approval Remarks for License #${licNumber} (optional):`, 'Regulatory documentation verified & approved.');
     if (remarks === null) return;
 
     try {
       const res = await api.approveLicense(id, remarks);
       if (res.success) {
-        alert(`✓ License #${licNum} approved and verified.`);
+        alert('✓ License successfully verified & approved.');
         loadLicenses();
       } else {
         alert(`Failed: ${res.message}`);
@@ -58,8 +44,8 @@ export default function LicensesPage() {
     }
   };
 
-  const handleReject = async (id, licNum) => {
-    const reason = window.prompt(`Enter mandatory rejection reason for license #${licNum}:`);
+  const handleReject = async (id, licNumber) => {
+    const reason = window.prompt(`Mandatory Rejection Reason for License #${licNumber}:`);
     if (!reason) {
       alert('Rejection reason is required.');
       return;
@@ -68,7 +54,7 @@ export default function LicensesPage() {
     try {
       const res = await api.rejectLicense(id, reason);
       if (res.success) {
-        alert(`License #${licNum} rejected.`);
+        alert('License rejected.');
         loadLicenses();
       } else {
         alert(`Failed: ${res.message}`);
@@ -83,115 +69,91 @@ export default function LicensesPage() {
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: '#1e293b' }}>
-          📜 Regulatory License Verification Queue
+          📜 Regulatory License Verification
         </h1>
-        <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '4px' }}>
-          Inspect submitted manufacturer, wholesale, and pharmacy credentials with document validation
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
+          Review official pharmaceutical license certificates and issue regulatory clearance
         </p>
       </div>
 
       {/* Filter Bar */}
       <div className="glass-card" style={{ padding: '16px', marginBottom: '24px', background: '#ffffff' }}>
-        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by license number..."
-            style={{
-              flex: 1,
-              minWidth: '240px',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '0.85rem',
-            }}
-          />
-
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e3a8a' }}>
+            Filter Applications by Verification Status
+          </div>
           <select
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setPage(1);
-            }}
-            style={{
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '0.85rem',
-            }}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}
           >
-            <option value="">All Verification Statuses</option>
+            <option value="">All Applications</option>
             <option value="PENDING">PENDING</option>
             <option value="UNDER_REVIEW">UNDER_REVIEW</option>
             <option value="APPROVED">APPROVED / VERIFIED</option>
             <option value="REJECTED">REJECTED</option>
-            <option value="EXPIRED">EXPIRED</option>
           </select>
-
-          <button type="submit" className="btn btn-primary btn-sm">
-            Search
-          </button>
-        </form>
+        </div>
       </div>
 
       {/* Licenses Table */}
       <div className="glass-card" style={{ padding: '24px', background: '#ffffff' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '50px 0', color: '#2563eb', fontWeight: '600' }}>
-            Loading license registry...
+            Loading license applications...
           </div>
         ) : licenses.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
-            No licenses found matching criteria.
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-dim)' }}>
+            No license applications found matching filter.
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>LICENSE #</th>
                   <th>ORGANIZATION</th>
-                  <th>CLASSIFICATION</th>
-                  <th>EXPIRY DATE</th>
-                  <th>DOCUMENT</th>
+                  <th>LICENSE TYPE</th>
+                  <th>LICENSE NUMBER</th>
+                  <th>CERTIFICATE DOCUMENT</th>
+                  <th>SUBMITTED DATE</th>
                   <th>STATUS</th>
-                  <th style={{ textAlign: 'right' }}>REGULATORY ACTIONS</th>
+                  <th style={{ textAlign: 'right' }}>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {licenses.map((lic) => (
                   <tr key={lic._id}>
+                    <td>
+                      <strong style={{ color: 'var(--text-heading)' }}>{lic.organization?.name || 'Applicant Organization'}</strong>
+                    </td>
+                    <td>
+                      <StatusBadge status={lic.organization?.type || lic.licenseType} />
+                    </td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: '#1e3a8a' }}>
                       {lic.licenseNumber}
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: '600' }}>{lic.organization?.name || 'Organization'}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{lic.organization?.type}</div>
-                    </td>
-                    <td>
-                      <StatusBadge status={lic.licenseType} />
-                    </td>
-                    <td style={{ fontSize: '0.85rem', color: new Date(lic.expiryDate) < new Date() ? '#dc2626' : '#059669', fontWeight: '600' }}>
-                      {new Date(lic.expiryDate).toLocaleDateString()}
                     </td>
                     <td>
                       {lic.documentPath ? (
                         <button
                           onClick={() => setSelectedDoc(lic.documentPath)}
                           className="btn btn-outline btn-sm"
-                          style={{ fontSize: '0.75rem', padding: '2px 8px', background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8' }}
+                          style={{ fontSize: '0.75rem', padding: '4px 8px', color: '#1d4ed8', borderColor: '#bfdbfe' }}
                         >
                           📄 View Document
                         </button>
                       ) : (
-                        <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>None</span>
+                        <span style={{ color: 'var(--text-dim)' }}>No file attached</span>
                       )}
+                    </td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                      {new Date(lic.createdAt).toLocaleDateString()}
                     </td>
                     <td>
                       <StatusBadge status={lic.verificationStatus} />
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      {isRegulator ? (
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                        {lic.verificationStatus !== 'APPROVED' && lic.verificationStatus !== 'VERIFIED' && (
                           <button
                             onClick={() => handleApprove(lic._id, lic.licenseNumber)}
                             className="btn btn-primary btn-sm"
@@ -199,6 +161,8 @@ export default function LicensesPage() {
                           >
                             ✓ Approve
                           </button>
+                        )}
+                        {lic.verificationStatus !== 'REJECTED' && (
                           <button
                             onClick={() => handleReject(lic._id, lic.licenseNumber)}
                             className="btn btn-danger btn-sm"
@@ -206,10 +170,8 @@ export default function LicensesPage() {
                           >
                             ✕ Reject
                           </button>
-                        </div>
-                      ) : (
-                        <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Read Only</span>
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -219,6 +181,7 @@ export default function LicensesPage() {
         )}
       </div>
 
+      {/* Document Viewer Modal */}
       {selectedDoc && (
         <DocumentViewerModal
           documentPath={selectedDoc}
