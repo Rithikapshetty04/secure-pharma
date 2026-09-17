@@ -3,6 +3,23 @@ import { api } from '../api';
 
 const AuthContext = createContext(null);
 
+export const getRoleDashboardPath = (role) => {
+  switch (role?.toUpperCase()) {
+    case 'MANUFACTURER':
+      return '/manufacturer/dashboard';
+    case 'DISTRIBUTOR':
+      return '/distributor/dashboard';
+    case 'PHARMACY':
+      return '/pharmacy/dashboard';
+    case 'ADMIN':
+    case 'SUPER_ADMIN':
+    case 'REGULATOR':
+      return '/admin/dashboard';
+    default:
+      return '/login';
+  }
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('securepharma_token') || null);
@@ -45,7 +62,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('securepharma_token', res.token);
       setToken(res.token);
       setUser(res.user);
-      return { success: true, user: res.user };
+      return { success: true, user: res.user, dashboardPath: getRoleDashboardPath(res.user?.role) };
     }
     return {
       success: false,
@@ -81,6 +98,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    getRoleDashboardPath,
     refreshUser: fetchCurrentUser,
   };
 
@@ -93,4 +111,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+}

@@ -150,7 +150,7 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
         {isAuthenticated ? (
           <>
             <Link
-              to="/dashboard"
+              to={user ? (user.role === 'MANUFACTURER' ? '/manufacturer/dashboard' : user.role === 'DISTRIBUTOR' ? '/distributor/dashboard' : user.role === 'PHARMACY' ? '/pharmacy/dashboard' : '/admin/dashboard') : '/login'}
               className="btn btn-pill btn-pill-outline btn-sm"
               style={{ padding: '8px 18px', fontSize: '0.875rem' }}
             >

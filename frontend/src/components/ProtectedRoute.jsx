@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, getRoleDashboardPath } from '../context/AuthContext';
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const { user, isAuthenticated, loading } = useAuth();
@@ -17,31 +17,38 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
         gap: '16px',
       }}>
         <div className="live-dot" style={{ width: '20px', height: '20px' }}></div>
-        <div style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>
-          Verifying cryptographic credentials...
+        <div style={{ color: '#2563eb', fontWeight: '600', fontSize: '0.95rem' }}>
+          Verifying credentials & role authorization...
         </div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If pending approval and not an admin/regulator
-  const isAdminOrRegulator = user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'REGULATOR';
-  if (!isAdminOrRegulator && user.accountStatus === 'PENDING') {
-    return <Navigate to="/pending-verification" replace />;
+  // If pending approval and not an admin
+  const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'REGULATOR';
+  if (!isAdmin && (user.accountStatus === 'PENDING' || user.accountStatus === 'UNDER_REVIEW' || user.accountStatus === 'REJECTED')) {
+    return <Navigate to={`/pending-verification?email=${encodeURIComponent(user.email || '')}`} replace />;
   }
 
   if (allowedRoles.length > 0) {
-    const normalizedUserRole = user.role === 'ADMIN' ? 'SUPER_ADMIN' : user.role;
-    const hasRole = allowedRoles.includes(user.role) || allowedRoles.includes(normalizedUserRole);
+    const userRole = (user.role || '').toUpperCase();
+    const normalizedRoles = allowedRoles.map((r) => r.toUpperCase());
 
-    if (!hasRole) {
-      return <Navigate to="/unauthorized" replace />;
+    const isMatch =
+      normalizedRoles.includes(userRole) ||
+      (userRole === 'SUPER_ADMIN' && normalizedRoles.includes('ADMIN')) ||
+      (userRole === 'ADMIN' && normalizedRoles.includes('SUPER_ADMIN'));
+
+    if (!isMatch) {
+      // Redirect to their own dashboard
+      const userDashboard = getRoleDashboardPath(user.role);
+      return <Navigate to={userDashboard} replace />;
     }
   }
 
   return children;
-}
+}

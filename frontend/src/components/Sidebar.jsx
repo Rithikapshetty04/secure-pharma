@@ -1,18 +1,25 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNotifications } from '../context/NotificationContext';
+import { useCart } from '../context/CartContext';
 import StatusBadge from './StatusBadge';
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { user } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { user, logout } = useAuth();
+  const { cartCount } = useCart();
+  const navigate = useNavigate();
 
-  const role = user?.role || 'GUEST';
-  const isRegulator = role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'REGULATOR';
+  const role = (user?.role || '').toUpperCase();
   const isMfg = role === 'MANUFACTURER';
   const isDist = role === 'DISTRIBUTOR';
   const isPharm = role === 'PHARMACY';
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'REGULATOR';
+
+  const handleLogout = async () => {
+    if (onClose) onClose();
+    await logout();
+    navigate('/login');
+  };
 
   const linkStyle = ({ isActive }) => ({
     display: 'flex',
@@ -60,17 +67,36 @@ export default function Sidebar({ isOpen, onClose }) {
           boxShadow: '1px 0 3px rgba(15, 23, 42, 0.02)',
         }}
       >
-        {/* Org Banner */}
+        {/* Entity Banner */}
         {user && (
-          <div style={{
-            padding: '18px 20px',
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'linear-gradient(180deg, #f0f7ff 0%, #ffffff 100%)',
-          }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#2563eb', letterSpacing: '0.05em', marginBottom: '4px' }}>
+          <div
+            style={{
+              padding: '18px 20px',
+              borderBottom: '1px solid var(--border-subtle)',
+              background: 'linear-gradient(180deg, #f0f7ff 0%, #ffffff 100%)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '0.7rem',
+                fontWeight: '700',
+                color: '#2563eb',
+                letterSpacing: '0.05em',
+                marginBottom: '4px',
+              }}
+            >
               AUTHENTICATED ENTITY
             </div>
-            <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div
+              style={{
+                fontWeight: '700',
+                fontSize: '0.95rem',
+                color: 'var(--text-heading)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {user.organization?.name || user.name}
             </div>
             <div style={{ marginTop: '6px' }}>
@@ -81,129 +107,232 @@ export default function Sidebar({ isOpen, onClose }) {
 
         {/* Navigation Sections */}
         <div style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', letterSpacing: '0.05em', padding: '8px 12px 4px' }}>
-            CORE LEDGER
-          </div>
-
-          <NavLink to="/dashboard" style={linkStyle} onClick={onClose}>
-            📊 <span>Dashboard</span>
-          </NavLink>
-
-          <NavLink to="/verify/BATCH-2026-TEST-001" style={linkStyle} onClick={onClose}>
-            🔍 <span>Public Verifier</span>
-          </NavLink>
-
-          <NavLink to="/products" style={linkStyle} onClick={onClose}>
-            💊 <span>Formulary Drugs</span>
-          </NavLink>
-
-          <NavLink to="/batches" style={linkStyle} onClick={onClose}>
-            📦 <span>Batches & QR</span>
-          </NavLink>
-
-          <NavLink to="/supply-chain" style={linkStyle} onClick={onClose}>
-            ⛓️ <span>Supply Chain</span>
-          </NavLink>
-
-          <NavLink to="/organizations" style={linkStyle} onClick={onClose}>
-            🏢 <span>Organizations</span>
-          </NavLink>
-
-          {/* Role Specific Menus */}
-          {isRegulator && (
-            <>
-              <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#d97706', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
-                REGULATORY OVERSIGHT
-              </div>
-
-              <NavLink to="/regulator/licenses" style={linkStyle} onClick={onClose}>
-                📜 <span>License Approvals</span>
-              </NavLink>
-
-              <NavLink to="/regulator/organizations" style={linkStyle} onClick={onClose}>
-                🛡️ <span>Entity Management</span>
-              </NavLink>
-
-              <NavLink to="/regulator/audit-logs" style={linkStyle} onClick={onClose}>
-                📋 <span>21 CFR Audit Logs</span>
-              </NavLink>
-            </>
-          )}
-
+          {/* 1. MANUFACTURER NAVIGATION */}
           {isMfg && (
             <>
-              <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#059669', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
-                MANUFACTURER WORKSPACE
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: '700',
+                  color: '#059669',
+                  letterSpacing: '0.05em',
+                  padding: '8px 12px 4px',
+                }}
+              >
+                MANUFACTURER
               </div>
 
-              <NavLink to="/manufacturer/products" style={linkStyle} onClick={onClose}>
-                🧪 <span>Register Drug</span>
+              <NavLink to="/manufacturer/dashboard" style={linkStyle} onClick={onClose}>
+                📊 <span>Dashboard</span>
               </NavLink>
 
               <NavLink to="/manufacturer/batches" style={linkStyle} onClick={onClose}>
-                ⚙️ <span>Mint Production Batch</span>
+                📦 <span>Medicines / Batches</span>
+              </NavLink>
+
+              <NavLink to="/manufacturer/batches/create" style={linkStyle} onClick={onClose}>
+                ➕ <span>Create Batch</span>
+              </NavLink>
+
+              <NavLink to="/manufacturer/transfers" style={linkStyle} onClick={onClose}>
+                🚚 <span>Transfers</span>
+              </NavLink>
+
+              <NavLink to="/verify" style={linkStyle} onClick={onClose}>
+                🔍 <span>QR Verification</span>
+              </NavLink>
+
+              <NavLink to="/manufacturer/history" style={linkStyle} onClick={onClose}>
+                ⛓️ <span>Supply Chain History</span>
               </NavLink>
             </>
           )}
 
+          {/* 2. DISTRIBUTOR NAVIGATION */}
           {isDist && (
             <>
-              <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#7c3aed', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
-                DISTRIBUTION LOGISTICS
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: '700',
+                  color: '#7c3aed',
+                  letterSpacing: '0.05em',
+                  padding: '8px 12px 4px',
+                }}
+              >
+                DISTRIBUTOR
               </div>
 
-              <NavLink to="/distributor/shipments" style={linkStyle} onClick={onClose}>
-                🚚 <span>Transfer Custody</span>
+              <NavLink to="/distributor/dashboard" style={linkStyle} onClick={onClose}>
+                📊 <span>Dashboard</span>
+              </NavLink>
+
+              <NavLink to="/distributor/batches" style={linkStyle} onClick={onClose}>
+                📥 <span>Received Batches</span>
+              </NavLink>
+
+              <NavLink to="/distributor/inventory" style={linkStyle} onClick={onClose}>
+                📦 <span>Inventory</span>
+              </NavLink>
+
+              <NavLink to="/distributor/transfers" style={linkStyle} onClick={onClose}>
+                🚚 <span>Transfers</span>
+              </NavLink>
+
+              <NavLink to="/distributor/orders" style={linkStyle} onClick={onClose}>
+                📋 <span>Orders</span>
+              </NavLink>
+
+              <NavLink to="/verify" style={linkStyle} onClick={onClose}>
+                🔍 <span>QR Verification</span>
+              </NavLink>
+
+              <NavLink to="/distributor/history" style={linkStyle} onClick={onClose}>
+                ⛓️ <span>Supply Chain History</span>
               </NavLink>
             </>
           )}
 
+          {/* 3. PHARMACY NAVIGATION */}
           {isPharm && (
             <>
-              <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#0284c7', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
-                PHARMACY DISPENSARY
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: '700',
+                  color: '#0284c7',
+                  letterSpacing: '0.05em',
+                  padding: '8px 12px 4px',
+                }}
+              >
+                PHARMACY
               </div>
 
-              <NavLink to="/pharmacy/products" style={linkStyle} onClick={onClose}>
-                🏥 <span>Scan & Dispense</span>
+              <NavLink to="/pharmacy/dashboard" style={linkStyle} onClick={onClose}>
+                📊 <span>Dashboard</span>
+              </NavLink>
+
+              <NavLink to="/pharmacy/medicines" style={linkStyle} onClick={onClose}>
+                💊 <span>Medicines</span>
+              </NavLink>
+
+              <NavLink to="/pharmacy/cart" style={linkStyle} onClick={onClose}>
+                🛒 <span>Cart</span>
+                {cartCount > 0 && (
+                  <span
+                    className="badge badge-info"
+                    style={{ marginLeft: 'auto', padding: '2px 7px', fontSize: '0.7rem' }}
+                  >
+                    {cartCount}
+                  </span>
+                )}
+              </NavLink>
+
+              <NavLink to="/pharmacy/orders" style={linkStyle} onClick={onClose}>
+                📋 <span>Orders</span>
+              </NavLink>
+
+              <NavLink to="/pharmacy/received" style={linkStyle} onClick={onClose}>
+                🏥 <span>Received Medicines</span>
+              </NavLink>
+
+              <NavLink to="/verify" style={linkStyle} onClick={onClose}>
+                🔍 <span>QR Verification</span>
+              </NavLink>
+
+              <NavLink to="/pharmacy/history" style={linkStyle} onClick={onClose}>
+                ⛓️ <span>Supply Chain History</span>
               </NavLink>
             </>
           )}
 
-          {/* Account */}
-          <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', letterSpacing: '0.05em', padding: '14px 12px 4px' }}>
-            SYSTEM
+          {/* 4. ADMIN NAVIGATION */}
+          {isAdmin && (
+            <>
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: '700',
+                  color: '#d97706',
+                  letterSpacing: '0.05em',
+                  padding: '8px 12px 4px',
+                }}
+              >
+                ADMINISTRATOR
+              </div>
+
+              <NavLink to="/admin/dashboard" style={linkStyle} onClick={onClose}>
+                📊 <span>Dashboard</span>
+              </NavLink>
+
+              <NavLink to="/admin/users" style={linkStyle} onClick={onClose}>
+                👥 <span>Users & Entities</span>
+              </NavLink>
+
+              <NavLink to="/admin/licenses" style={linkStyle} onClick={onClose}>
+                📜 <span>License Verification</span>
+              </NavLink>
+
+              <NavLink to="/admin/batches" style={linkStyle} onClick={onClose}>
+                📦 <span>Batches / Monitoring</span>
+              </NavLink>
+
+              <NavLink to="/admin/audit" style={linkStyle} onClick={onClose}>
+                📋 <span>Audit / Traceability</span>
+              </NavLink>
+            </>
+          )}
+
+          {/* Shared Account Links */}
+          <div
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: '700',
+              color: '#64748b',
+              letterSpacing: '0.05em',
+              padding: '14px 12px 4px',
+            }}
+          >
+            ACCOUNT
           </div>
 
-          <NavLink to="/notifications" style={linkStyle} onClick={onClose}>
-            🔔 <span>Notifications</span>
-            {unreadCount > 0 && (
-              <span className="badge badge-danger" style={{ marginLeft: 'auto', padding: '2px 6px', fontSize: '0.7rem' }}>
-                {unreadCount}
-              </span>
-            )}
+          <NavLink to="/profile" style={linkStyle} onClick={onClose}>
+            👤 <span>Profile</span>
           </NavLink>
 
-          <NavLink to="/profile" style={linkStyle} onClick={onClose}>
-            👤 <span>Organization Profile</span>
-          </NavLink>
+          <button
+            onClick={handleLogout}
+            style={{
+              ...linkStyle({ isActive: false }),
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#dc2626',
+            }}
+          >
+            🚪 <span>Logout</span>
+          </button>
         </div>
 
         {/* Footer Security Badge */}
-        <div style={{
-          padding: '16px 20px',
-          borderTop: '1px solid var(--border-subtle)',
-          fontSize: '0.75rem',
-          color: 'var(--text-dim)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: '#f8fafc',
-        }}>
+        <div
+          style={{
+            padding: '14px 18px',
+            borderTop: '1px solid var(--border-subtle)',
+            fontSize: '0.75rem',
+            color: 'var(--text-dim)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: '#f8fafc',
+          }}
+        >
           <span className="live-dot"></span>
-          <span style={{ fontWeight: '600', color: '#1e40af' }}>Ledger Connected (v2.6)</span>
+          <span style={{ fontWeight: '600', color: '#1e40af' }}>Secure Pharma Active</span>
         </div>
       </aside>
     </>
   );
 }
+
