@@ -34,6 +34,7 @@ const STAKEHOLDER_ROLES = [
     id: 'MANUFACTURER',
     label: 'Manufacturer',
     title: 'Pharmaceutical Manufacturer',
+    actionText: 'Register as a pharmaceutical manufacturer',
     description: 'Licensed formulation plants & primary drug manufacturing facilities producing serialized batches.',
     icon: Factory,
     defaultLicenseType: 'MANUFACTURING',
@@ -44,6 +45,7 @@ const STAKEHOLDER_ROLES = [
     id: 'DISTRIBUTOR',
     label: 'Distributor',
     title: 'Wholesale Distributor',
+    actionText: 'Register as a verified distributor',
     description: 'Authorized wholesale entities managing cold-chain logistics, certified storage, and bulk distribution.',
     icon: Truck,
     defaultLicenseType: 'WHOLESALE',
@@ -54,6 +56,7 @@ const STAKEHOLDER_ROLES = [
     id: 'PHARMACY',
     label: 'Pharmacy',
     title: 'Dispensing Pharmacy',
+    actionText: 'Register as a pharmacy',
     description: 'Licensed retail, clinical, or hospital pharmacies dispensing authentic medicines to patients.',
     icon: Pill,
     defaultLicenseType: 'PHARMACY',
@@ -788,10 +791,10 @@ export default function RegisterPage() {
               {/* Form Title & Context */}
               <div style={{ marginBottom: '28px' }}>
                 <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px', letterSpacing: '-0.02em' }}>
-                  Create Stakeholder Account
+                  Create your Secure Pharma account
                 </h2>
                 <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-                  Submit verified entity credentials for FDA / cGMP pharmaceutical supply-chain authorization.
+                  Register as a verified supply-chain user for FDA / cGMP pharmaceutical authorization.
                 </p>
               </div>
 
@@ -898,7 +901,10 @@ export default function RegisterPage() {
                             <div style={{ fontWeight: '800', fontSize: '0.95rem', color: isSelected ? '#1e40af' : '#1e293b' }}>
                               {role.label}
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: '2px' }}>
+                            <div style={{ fontSize: '0.78rem', color: isSelected ? '#1d4ed8' : '#334155', fontWeight: '600', marginTop: '2px' }}>
+                              {role.actionText}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.35, marginTop: '2px' }}>
                               {role.description}
                             </div>
                           </div>
@@ -1569,7 +1575,7 @@ export default function RegisterPage() {
                     </>
                   ) : (
                     <>
-                      <span>Submit Regulatory Registration Application</span>
+                      <span>Create Account & Submit for Regulatory Audit</span>
                       <ArrowRight style={{ width: '18px', height: '18px' }} />
                     </>
                   )}
