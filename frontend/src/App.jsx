@@ -67,7 +67,7 @@ function AppLayout({ children, hideSidebar = false }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const isLanding = location.pathname === '/';
-  const isAuthPage = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-verification'].includes(location.pathname);
+  const isAuthPage = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-verification'].some((path) => location.pathname.startsWith(path));
   const shouldShowSidebar = !isLanding && !isAuthPage && !hideSidebar;
 
   return (
@@ -96,6 +96,7 @@ export default function App() {
               <Route path="/register" element={<AppLayout><RegisterPage /></AppLayout>} />
               <Route path="/forgot-password" element={<AppLayout><ForgotPasswordPage /></AppLayout>} />
               <Route path="/reset-password" element={<AppLayout><ResetPasswordPage /></AppLayout>} />
+              <Route path="/reset-password/:tokenParam" element={<AppLayout><ResetPasswordPage /></AppLayout>} />
               <Route path="/pending-verification" element={<AppLayout><PendingVerificationPage /></AppLayout>} />
               <Route path="/verify" element={<AppLayout><VerificationPage /></AppLayout>} />
               <Route path="/verify/:identifier" element={<AppLayout><VerificationPage /></AppLayout>} />
