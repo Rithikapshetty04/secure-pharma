@@ -9,13 +9,45 @@ const BlockchainService = require("../services/blockchainService");
 
 const getAllEvents = async (req, res, next) => {
   try {
-    const { batchId, eventType, fromOrgId, toOrgId, page = 1, limit = 20 } = req.query;
+    const { batchId, eventType, fromOrgId, toOrgId, search, page = 1, limit = 50 } = req.query;
     const filter = {};
+
+    // Manufacturer organization scope
+    if (req.user.role === "MANUFACTURER") {
+      const mfgOrgId = req.user.organization?._id || req.user.organization;
+      if (mfgOrgId) {
+        filter.$or = [{ fromOrganization: mfgOrgId }, { toOrganization: mfgOrgId }];
+      }
+    } else {
+      if (fromOrgId) filter.fromOrganization = fromOrgId;
+      if (toOrgId) filter.toOrganization = toOrgId;
+    }
 
     if (batchId) filter.batch = batchId;
     if (eventType) filter.eventType = eventType.toUpperCase();
-    if (fromOrgId) filter.fromOrganization = fromOrgId;
-    if (toOrgId) filter.toOrganization = toOrgId;
+
+    if (search && search.trim()) {
+      const searchRegex = { $regex: search.trim(), $options: "i" };
+      const matchingBatches = await Batch.find({
+        $or: [{ batchNumber: searchRegex }, { qrIdentifier: searchRegex }],
+      }).select("_id");
+      const matchingBatchIds = matchingBatches.map((b) => b._id);
+
+      const searchFilter = {
+        $or: [
+          { uniqueEventId: searchRegex },
+          { transactionHash: searchRegex },
+          { batch: { $in: matchingBatchIds } },
+        ],
+      };
+
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, searchFilter];
+        delete filter.$or;
+      } else {
+        filter.$or = searchFilter.$or;
+      }
+    }
 
     const skip = (Number(page) - 1) * Number(limit);
     const events = await SupplyChainEvent.find(filter)
@@ -126,15 +158,69 @@ const recordEvent = async (req, res, next) => {
     }
 
     const fromOrgId = req.user.organization?._id || req.user.organization;
-    const destOrgId = toOrganizationId || fromOrgId;
+
+    // Role Custody & Ownership Authorization Check for Manufacturers
+    if (req.user.role === "MANUFACTURER") {
+      const batchMfgId = (batch.manufacturer?._id || batch.manufacturer || "").toString();
+      const userOrgId = (fromOrgId || "").toString();
+
+      if (userOrgId && batchMfgId && userOrgId !== batchMfgId) {
+        return res.status(403).json({
+          success: false,
+          message: "Access forbidden: You do not have custody of this batch.",
+        });
+      }
+    }
+
+    // Status Validation: Recalled or Expired batches cannot be transferred
+    if (batch.status === "RECALLED") {
+      return res.status(400).json({
+        success: false,
+        message: "Batch has been recalled and cannot be transferred into the supply chain.",
+      });
+    }
+
+    if (new Date(batch.expiryDate) <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Batch has expired and cannot be transferred into the supply chain.",
+      });
+    }
+
+    // Recipient Distributor Validation
+    let destOrgId = fromOrgId;
+    if (toOrganizationId) {
+      const targetOrg = await Organization.findById(toOrganizationId);
+      if (!targetOrg) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected recipient organization not found.",
+        });
+      }
+
+      if (targetOrg.type !== "DISTRIBUTOR" && targetOrg.type !== "PHARMACY") {
+        return res.status(400).json({
+          success: false,
+          message: "Selected recipient must be a certified Distributor or Pharmacy organization.",
+        });
+      }
+      destOrgId = targetOrg._id;
+    }
+
+    // Quantity Validation
+    const transferQty = quantity ? Number(quantity) : batch.quantity;
+    if (isNaN(transferQty) || transferQty <= 0 || transferQty > batch.quantity) {
+      return res.status(400).json({
+        success: false,
+        message: `Transfer quantity must be between 1 and total available volume (${batch.quantity}).`,
+      });
+    }
 
     // Update batch status based on event
-    if (normalizedEventType === "DISPATCHED" || normalizedEventType === "SHIPPED") {
+    if (normalizedEventType === "DISPATCHED" || normalizedEventType === "SHIPPED" || normalizedEventType === "TRANSFERRED") {
       batch.status = "IN_TRANSIT";
     } else if (normalizedEventType === "RECEIVED") {
       batch.status = "RECEIVED";
-    } else if (normalizedEventType === "TRANSFERRED") {
-      batch.status = "IN_TRANSIT";
     } else if (normalizedEventType === "DELIVERED") {
       batch.status = "DELIVERED";
     } else if (normalizedEventType === "SOLD") {
@@ -155,7 +241,17 @@ const recordEvent = async (req, res, next) => {
       eventType: normalizedEventType,
       fromOrgId,
       toOrgId: destOrgId,
-      location: location || req.user.organization?.address || "Supply Chain Node",
+      location: location || req.user.organization?.address || "Supply Chain Logistics Node",
+      timestamp: Date.now(),
+      previousHash,
+    });
+
+    const blockchainRecord = await BlockchainService.recordEventOnChain({
+      batchNumber: batch.batchNumber,
+      eventType: normalizedEventType,
+      fromOrgId,
+      toOrgId: destOrgId,
+      location: location || req.user.organization?.address || "Supply Chain Logistics Node",
       timestamp: Date.now(),
       previousHash,
     });
@@ -167,12 +263,14 @@ const recordEvent = async (req, res, next) => {
       eventType: normalizedEventType,
       fromOrganization: fromOrgId,
       toOrganization: destOrgId,
-      location: location || req.user.organization?.address || "Supply Chain Node",
+      location: location || req.user.organization?.address || "Supply Chain Logistics Node",
       user: req.user._id,
-      quantity: quantity ? Number(quantity) : batch.quantity,
-      notes: notes ? notes.trim() : `Event ${normalizedEventType} recorded on ledger.`,
+      quantity: transferQty,
+      notes: notes ? notes.trim() : `Custody transfer '${normalizedEventType}' logged on ledger.`,
       uniqueEventId,
-      transactionHash: txHash,
+      transactionHash: blockchainRecord?.transactionHash || txHash,
+      blockNumber: blockchainRecord?.blockNumber,
+      blockchainNetwork: blockchainRecord?.network || "Sepolia Ethereum Testnet (Simulated Proof)",
       eventDate: new Date(),
     });
 
@@ -187,7 +285,7 @@ const recordEvent = async (req, res, next) => {
         recipientOrg: destOrgId,
         type: normalizedEventType === "DISPATCHED" ? "BATCH_TRANSFERRED" : "BATCH_RECEIVED",
         title: `Supply Chain Notice: Batch #${batch.batchNumber}`,
-        message: `${req.user.organization?.name || "Partner"} logged a '${normalizedEventType}' event for Batch #${batch.batchNumber}.`,
+        message: `${req.user.organization?.name || "Manufacturer"} transferred custody for Batch #${batch.batchNumber} (${batch.product?.name}).`,
         relatedEntity: "Batch",
         relatedEntityId: batch._id,
       });
@@ -203,16 +301,17 @@ const recordEvent = async (req, res, next) => {
         batchNumber: batch.batchNumber,
         eventType: normalizedEventType,
         uniqueEventId,
-        transactionHash: txHash,
+        transactionHash: blockchainRecord?.transactionHash || txHash,
       },
       req,
     });
 
     return res.status(201).json({
       success: true,
-      message: `Supply chain event '${normalizedEventType}' logged and cryptographically anchored.`,
+      message: `Supply chain event '${normalizedEventType}' logged and cryptographically anchored on ledger.`,
       event: populatedEvent,
       batchStatus: batch.status,
+      blockchainRecord,
     });
   } catch (error) {
     next(error);

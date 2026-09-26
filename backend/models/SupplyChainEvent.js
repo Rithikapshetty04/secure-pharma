@@ -56,6 +56,13 @@ const supplyChainEventSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    blockNumber: {
+      type: Number,
+    },
+    blockchainNetwork: {
+      type: String,
+      default: "Sepolia Ethereum Testnet (Simulated Proof)",
+    },
     eventDate: {
       type: Date,
       default: Date.now,

@@ -277,6 +277,62 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Distributor
+  async getDistributorDashboard() {
+    const res = await fetch(`${BASE_URL}/api/distributor/dashboard`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getDistributorBatches(params = {}) {
+    const query = new URLSearchParams(params);
+    const res = await fetch(`${BASE_URL}/api/distributor/batches?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getDistributorInventory(params = {}) {
+    const query = new URLSearchParams(params);
+    const res = await fetch(`${BASE_URL}/api/distributor/inventory?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getDistributorTransfers(params = {}) {
+    const query = new URLSearchParams(params);
+    const res = await fetch(`${BASE_URL}/api/distributor/transfers?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async receiveDistributorBatch(data) {
+    const res = await fetch(`${BASE_URL}/api/distributor/transfers/receive`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async dispatchDistributorBatch(data) {
+    const res = await fetch(`${BASE_URL}/api/distributor/transfers/dispatch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   // Verification
   async verifyProduct(identifier) {
     const res = await fetch(`${BASE_URL}/api/verify/${encodeURIComponent(identifier)}`);

@@ -9,8 +9,27 @@ const BlockchainService = require("../services/blockchainService");
 
 const getAllBatches = async (req, res, next) => {
   try {
-    const { status, productId, manufacturerId, search, page = 1, limit = 20 } = req.query;
+    const { status, productId, manufacturerId, search, page = 1, limit = 50 } = req.query;
     const filter = {};
+
+    // Enforce Role Scope
+    if (req.user.role === "MANUFACTURER") {
+      const mfgOrgId = req.user.organization?._id || req.user.organization;
+      if (mfgOrgId) {
+        filter.manufacturer = mfgOrgId;
+      }
+    } else if (req.user.role === "DISTRIBUTOR") {
+      const distOrgId = req.user.organization?._id || req.user.organization;
+      if (distOrgId) {
+        const events = await SupplyChainEvent.find({
+          $or: [{ fromOrganization: distOrgId }, { toOrganization: distOrgId }],
+        }).select("batch");
+        const batchIds = [...new Set(events.map((e) => e.batch?.toString()).filter(Boolean))];
+        filter._id = { $in: batchIds };
+      }
+    } else if (manufacturerId) {
+      filter.manufacturer = manufacturerId;
+    }
 
     if (status) {
       filter.status = status.toUpperCase();
@@ -18,13 +37,25 @@ const getAllBatches = async (req, res, next) => {
     if (productId) {
       filter.product = productId;
     }
-    if (manufacturerId) {
-      filter.manufacturer = manufacturerId;
-    }
-    if (search) {
+
+    if (search && search.trim()) {
+      const searchRegex = { $regex: search.trim(), $options: "i" };
+
+      // Search matching products by name or code
+      const matchingProducts = await Product.find({
+        $or: [
+          { name: searchRegex },
+          { genericName: searchRegex },
+          { productCode: searchRegex },
+        ],
+      }).select("_id");
+
+      const matchingProductIds = matchingProducts.map((p) => p._id);
+
       filter.$or = [
-        { batchNumber: { $regex: search, $options: "i" } },
-        { qrIdentifier: { $regex: search, $options: "i" } },
+        { batchNumber: searchRegex },
+        { qrIdentifier: searchRegex },
+        { product: { $in: matchingProductIds } },
       ];
     }
 
@@ -67,8 +98,32 @@ const getBatchById = async (req, res, next) => {
     if (!batch) {
       return res.status(404).json({
         success: false,
-        message: "Batch not found",
+        message: "Pharmaceutical batch not found.",
       });
+    }
+
+    // Role Ownership / Authorization Check for Manufacturer & Distributor (IDOR Prevention)
+    if (req.user.role === "MANUFACTURER") {
+      const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+      const batchMfgId = (batch.manufacturer?._id || batch.manufacturer || "").toString();
+      if (userOrgId && batchMfgId && userOrgId !== batchMfgId) {
+        return res.status(403).json({
+          success: false,
+          message: "Access forbidden: You do not have authorization to view this batch.",
+        });
+      }
+    } else if (req.user.role === "DISTRIBUTOR") {
+      const distOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+      const hasAccess = await SupplyChainEvent.exists({
+        batch: batch._id,
+        $or: [{ fromOrganization: distOrgId }, { toOrganization: distOrgId }],
+      });
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: "Access forbidden: You do not have authorization to view this batch.",
+        });
+      }
     }
 
     const events = await SupplyChainEvent.find({ batch: batch._id })
@@ -77,10 +132,20 @@ const getBatchById = async (req, res, next) => {
       .populate("user", "name role")
       .sort({ eventDate: 1 });
 
+    // Derive current custodian from latest event or manufacturer
+    let currentCustodian = batch.manufacturer;
+    if (events && events.length > 0) {
+      const latestEvent = events[events.length - 1];
+      if (latestEvent.toOrganization) {
+        currentCustodian = latestEvent.toOrganization;
+      }
+    }
+
     return res.status(200).json({
       success: true,
       batch,
       events,
+      currentCustodian,
     });
   } catch (error) {
     next(error);
@@ -150,6 +215,16 @@ const createBatch = async (req, res, next) => {
       manufacturerId: mfgOrgId,
     });
 
+    // Record on-chain registration proof
+    const blockchainRecord = await BlockchainService.recordBatchOnChain({
+      batchNumber: normalizedBatchNumber,
+      productCode: product.productCode,
+      manufacturingDate: mfgDate,
+      expiryDate: expDate,
+      quantity: Number(quantity),
+      manufacturerId: mfgOrgId,
+    });
+
     const batch = await Batch.create({
       batchNumber: normalizedBatchNumber,
       product: product._id,
@@ -162,6 +237,9 @@ const createBatch = async (req, res, next) => {
       status: "MANUFACTURED",
       qrIdentifier,
       batchHash,
+      blockchainTxHash: blockchainRecord?.transactionHash || batchHash,
+      blockNumber: blockchainRecord?.blockNumber,
+      blockchainNetwork: blockchainRecord?.network || "Sepolia Ethereum Testnet (Simulated Proof)",
     });
 
     // Create Initial MANUFACTURED SupplyChainEvent
@@ -219,6 +297,7 @@ const createBatch = async (req, res, next) => {
       message: "Batch successfully minted, hashed, and registered with initial provenance checkpoint.",
       batch,
       event,
+      blockchainRecord,
     });
   } catch (error) {
     next(error);

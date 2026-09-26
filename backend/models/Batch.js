@@ -70,6 +70,17 @@ const batchSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    blockchainTxHash: {
+      type: String,
+      trim: true,
+    },
+    blockNumber: {
+      type: Number,
+    },
+    blockchainNetwork: {
+      type: String,
+      default: "Sepolia Ethereum Testnet (Simulated Proof)",
+    },
     recallReason: {
       type: String,
       trim: true,
