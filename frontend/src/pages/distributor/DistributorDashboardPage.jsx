@@ -66,21 +66,31 @@ export default function DistributorDashboardPage() {
     loadDashboardData();
   }, []);
 
+  const [confirmingId, setConfirmingId] = useState(null);
+
   const handleConfirmReceipt = async (batchId, batchNumber) => {
+    const targetBatchId = batchId || batchNumber;
+    if (!targetBatchId) return;
+
+    setConfirmingId(targetBatchId);
+    setError(null);
     try {
-      const res = await api.recordEvent({
-        batchId,
-        batchNumber,
-        eventType: 'RECEIVED',
+      const res = await api.receiveDistributorBatch({
+        batchId: targetBatchId,
         location: user?.organization?.address || 'Distributor Receiving Warehouse',
         notes: `Receipt confirmed by wholesale distributor ${user?.organization?.name || ''}.`,
       });
 
       if (res && res.success) {
-        loadDashboardData();
+        await loadDashboardData();
+      } else {
+        setError(res?.message || 'Failed to confirm batch receipt.');
       }
     } catch (err) {
       console.error('Error confirming batch receipt:', err);
+      setError(err.message || 'Server error confirming batch receipt.');
+    } finally {
+      setConfirmingId(null);
     }
   };
 
@@ -319,11 +329,30 @@ export default function DistributorDashboardPage() {
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <button
                       type="button"
-                      onClick={() => handleConfirmReceipt(evt.batch?._id, evt.batch?.batchNumber)}
+                      disabled={confirmingId === (evt.batch?._id || evt.batch)}
+                      onClick={() => handleConfirmReceipt(evt.batch?._id || evt.batch, evt.batch?.batchNumber)}
                       className="btn btn-primary btn-sm"
-                      style={{ padding: '8px 16px', fontSize: '0.82rem', fontWeight: '700', background: '#059669', borderColor: '#059669' }}
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '0.82rem',
+                        fontWeight: '700',
+                        background: '#059669',
+                        borderColor: '#059669',
+                        opacity: confirmingId === (evt.batch?._id || evt.batch) ? 0.7 : 1,
+                        cursor: confirmingId === (evt.batch?._id || evt.batch) ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
                     >
-                      ✓ Confirm Receipt
+                      {confirmingId === (evt.batch?._id || evt.batch) ? (
+                        <>
+                          <RefreshCw style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} />
+                          <span>Confirming...</span>
+                        </>
+                      ) : (
+                        <span>✓ Confirm Receipt</span>
+                      )}
                     </button>
 
                     <Link

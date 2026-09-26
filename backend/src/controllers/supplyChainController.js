@@ -12,11 +12,11 @@ const getAllEvents = async (req, res, next) => {
     const { batchId, eventType, fromOrgId, toOrgId, search, page = 1, limit = 50 } = req.query;
     const filter = {};
 
-    // Manufacturer organization scope
-    if (req.user.role === "MANUFACTURER") {
-      const mfgOrgId = req.user.organization?._id || req.user.organization;
-      if (mfgOrgId) {
-        filter.$or = [{ fromOrganization: mfgOrgId }, { toOrganization: mfgOrgId }];
+    // Role-based organization scoping
+    if (req.user.role === "MANUFACTURER" || req.user.role === "DISTRIBUTOR" || req.user.role === "PHARMACY") {
+      const userOrgId = req.user.organization?._id || req.user.organization;
+      if (userOrgId) {
+        filter.$or = [{ fromOrganization: userOrgId }, { toOrganization: userOrgId }];
       }
     } else {
       if (fromOrgId) filter.fromOrganization = fromOrgId;

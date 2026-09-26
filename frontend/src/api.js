@@ -333,6 +333,45 @@ export const api = {
     return handleResponse(res);
   },
 
+  async getDistributorOrders(params = {}) {
+    const query = new URLSearchParams(params);
+    const res = await fetch(`${BASE_URL}/api/distributor/orders?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getDistributorOrderById(orderId) {
+    const res = await fetch(`${BASE_URL}/api/distributor/orders/${encodeURIComponent(orderId)}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async updateDistributorOrderStatus(orderId, status, notes) {
+    const res = await fetch(`${BASE_URL}/api/distributor/orders/${encodeURIComponent(orderId)}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ status, notes }),
+    });
+    return handleResponse(res);
+  },
+
+  async createOrder(data) {
+    const res = await fetch(`${BASE_URL}/api/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   // Verification
   async verifyProduct(identifier) {
     const res = await fetch(`${BASE_URL}/api/verify/${encodeURIComponent(identifier)}`);

@@ -383,42 +383,77 @@ const getDistributorTransfers = async (req, res, next) => {
       });
     }
 
-    const { category = "ALL", search, status, page = 1, limit = 50 } = req.query;
+    const { category = "ALL", search, status, eventType, sort = "newest", fromDate, toDate, page = 1, limit = 50 } = req.query;
 
-    const filter = {
+    let filter = {
       $or: [{ fromOrganization: distributorOrgId }, { toOrganization: distributorOrgId }],
     };
 
     if (category.toUpperCase() === "INCOMING") {
-      filter.toOrganization = distributorOrgId;
+      filter = { toOrganization: distributorOrgId };
     } else if (category.toUpperCase() === "OUTGOING") {
-      filter.fromOrganization = distributorOrgId;
-      filter.toOrganization = { $ne: distributorOrgId };
+      filter = {
+        fromOrganization: distributorOrgId,
+        toOrganization: { $ne: distributorOrgId },
+      };
     }
 
-    if (status && status.toUpperCase() !== "ALL") {
-      filter.eventType = status.toUpperCase();
+    const targetType = (eventType || status || "").toUpperCase();
+    if (targetType && targetType !== "ALL") {
+      filter.eventType = targetType;
+    }
+
+    if (fromDate || toDate) {
+      filter.eventDate = {};
+      if (fromDate) filter.eventDate.$gte = new Date(fromDate);
+      if (toDate) filter.eventDate.$lte = new Date(`${toDate}T23:59:59.999Z`);
     }
 
     if (search && search.trim()) {
       const searchRegex = { $regex: search.trim(), $options: "i" };
+
+      // Find matching products by name, code, or generic name
+      const matchingProducts = await Product.find({
+        $or: [
+          { name: searchRegex },
+          { genericName: searchRegex },
+          { productCode: searchRegex },
+        ],
+      }).select("_id");
+      const matchingProductIds = matchingProducts.map((p) => p._id);
+
+      // Find matching batches by batchNumber, qrIdentifier, or product
       const matchingBatches = await Batch.find({
-        $or: [{ batchNumber: searchRegex }, { qrIdentifier: searchRegex }],
+        $or: [
+          { batchNumber: searchRegex },
+          { qrIdentifier: searchRegex },
+          { product: { $in: matchingProductIds } },
+        ],
       }).select("_id");
       const matchingBatchIds = matchingBatches.map((b) => b._id);
 
-      filter.$and = [
-        { $or: [{ fromOrganization: distributorOrgId }, { toOrganization: distributorOrgId }] },
-        {
-          $or: [
-            { uniqueEventId: searchRegex },
-            { transactionHash: searchRegex },
-            { batch: { $in: matchingBatchIds } },
-          ],
-        },
+      // Find matching organizations
+      const Organization = require("../../models/Organization");
+      const matchingOrgs = await Organization.find({ name: searchRegex }).select("_id");
+      const matchingOrgIds = matchingOrgs.map((o) => o._id);
+
+      const baseScope = { ...filter };
+      const searchOr = [
+        { uniqueEventId: searchRegex },
+        { transactionHash: searchRegex },
+        { notes: searchRegex },
+        { location: searchRegex },
+        { batch: { $in: matchingBatchIds } },
+        { fromOrganization: { $in: matchingOrgIds } },
+        { toOrganization: { $in: matchingOrgIds } },
       ];
-      delete filter.$or;
+
+      filter = {
+        $and: [baseScope, { $or: searchOr }],
+      };
     }
+
+    const sortOrder = sort === "oldest" ? 1 : -1;
 
     const total = await SupplyChainEvent.countDocuments(filter);
     const skip = (Number(page) - 1) * Number(limit);
@@ -426,12 +461,12 @@ const getDistributorTransfers = async (req, res, next) => {
     const events = await SupplyChainEvent.find(filter)
       .populate({
         path: "batch",
-        populate: { path: "product", select: "name productCode dosageForm strength" },
+        populate: { path: "product", select: "name productCode dosageForm strength pricePerUnit" },
       })
       .populate("fromOrganization", "name type address contactEmail")
       .populate("toOrganization", "name type address contactEmail")
       .populate("user", "name role email")
-      .sort({ eventDate: -1 })
+      .sort({ eventDate: sortOrder })
       .skip(skip)
       .limit(Number(limit));
 
