@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { batchApi } from '../../services/api';
+import { api } from '../../api';
 import {
   Package,
   Search,
@@ -13,290 +13,429 @@ import {
   AlertTriangle,
   Building2,
   Calendar,
-  X
+  X,
+  RefreshCw,
+  Loader2,
+  AlertCircle,
+  ShoppingBag,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 const PharmacyReceivedPage = () => {
   const [batches, setBatches] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sortOrder, setSortOrder] = useState('newest');
   const [qrModalBatch, setQrModalBatch] = useState(null);
 
-  useEffect(() => {
-    fetchReceivedBatches();
-  }, []);
-
-  const fetchReceivedBatches = async () => {
+  const fetchReceivedBatches = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const res = await batchApi.getAll({ limit: 50 });
-      setBatches(res.data?.batches || res.data || []);
+      const res = await api.getPharmacyReceivedBatches({
+        search: search.trim(),
+        status: statusFilter,
+        sort: sortOrder,
+      });
+
+      if (res && res.success) {
+        setBatches(res.batches || []);
+        setTotal(res.total || (res.batches ? res.batches.length : 0));
+      } else {
+        setError(res?.message || 'Failed to fetch received pharmaceutical batches.');
+      }
     } catch (err) {
-      console.error('Error fetching received batches:', err);
+      console.error('Error fetching pharmacy received batches:', err);
+      setError(err.message || 'Server connection error loading received inventory.');
     } finally {
       setLoading(false);
     }
+  }, [search, statusFilter, sortOrder]);
+
+  useEffect(() => {
+    fetchReceivedBatches();
+  }, [fetchReceivedBatches]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    fetchReceivedBatches();
   };
 
-  const getStatusBadge = (status) => {
+  const now = new Date();
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const readyToDispenseCount = batches.filter(
+    (b) => b.status !== 'RECALLED' && new Date(b.expiryDate) > now
+  ).length;
+  const expiringSoonCount = batches.filter((b) => {
+    const exp = new Date(b.expiryDate);
+    return exp > now && exp <= thirtyDaysFromNow;
+  }).length;
+  const expiredCount = batches.filter((b) => new Date(b.expiryDate) <= now).length;
+
+  const getStatusBadge = (status, expiryDate) => {
+    const exp = new Date(expiryDate);
+    if (exp <= now) {
+      return (
+        <span style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', fontSize: '0.75rem', fontWeight: '700', padding: '3px 10px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <AlertTriangle style={{ width: '13px', height: '13px' }} />
+          Expired
+        </span>
+      );
+    }
+
     switch (status) {
-      case 'RELEASED':
+      case 'RECEIVED':
       case 'ACTIVE':
+      case 'RELEASED':
       case 'AVAILABLE':
-        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
+        return (
+          <span style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontSize: '0.75rem', fontWeight: '700', padding: '3px 10px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <CheckCircle2 style={{ width: '13px', height: '13px' }} />
+            Received / Stocked
+          </span>
+        );
+      case 'IN_TRANSIT':
+      case 'MANUFACTURED':
+        return (
+          <span style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: '0.75rem', fontWeight: '700', padding: '3px 10px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Package style={{ width: '13px', height: '13px' }} />
+            In Transit
+          </span>
+        );
       case 'QUARANTINED':
       case 'FLAGGED':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800';
+        return (
+          <span style={{ background: '#fffbebfb', color: '#b45309', border: '1px solid #fde68a', fontSize: '0.75rem', fontWeight: '700', padding: '3px 10px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <AlertTriangle style={{ width: '13px', height: '13px' }} />
+            Quarantined
+          </span>
+        );
       case 'RECALLED':
-        return 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800';
+        return (
+          <span style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', fontSize: '0.75rem', fontWeight: '700', padding: '3px 10px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <AlertTriangle style={{ width: '13px', height: '13px' }} />
+            Recalled
+          </span>
+        );
       default:
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800';
+        return (
+          <span style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: '700', padding: '3px 10px', borderRadius: '9999px' }}>
+            {status || 'Stocked'}
+          </span>
+        );
     }
   };
 
-  const filteredBatches = batches.filter(batch => {
-    const matchesSearch =
-      batch.batchNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      batch.productName?.toLowerCase().includes(search.toLowerCase()) ||
-      batch.manufacturer?.name?.toLowerCase().includes(search.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === 'ALL' ||
-      batch.status?.toUpperCase() === statusFilter.toUpperCase();
-
-    return matchesSearch && matchesStatus;
-  });
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-            <Package className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
-            Received Medicines & Dispensary Stock
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage authenticated pharmaceutical batches in pharmacy possession ready for patient dispensing
-          </p>
-        </div>
-
-        <Link
-          to="/pharmacy/medicines"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition shadow-sm self-start sm:self-auto"
-        >
-          Procure More Stock
-        </Link>
-      </div>
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
-            <Package className="w-6 h-6" />
-          </div>
+    <div style={{ minHeight: 'calc(100vh - 72px)', background: '#f8fafc', padding: '32px 20px 80px' }}>
+      <div style={{ maxWidth: '1240px', margin: '0 auto' }}>
+        {/* Header Bar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
           <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Stocked Batches</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">{batches.length}</p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Authenticity Verified</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">{batches.length}</p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Ready to Dispense</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">
-              {batches.filter(b => b.status !== 'RECALLED').length}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ background: '#ecfdf5', color: '#047857', fontSize: '0.75rem', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
+                Custody Management
+              </span>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                Authentic Dispensary Stock & Received Batches
+              </span>
+            </div>
+            <h1 style={{ fontSize: '1.85rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+              Received Batches & Inventory Stock
+            </h1>
+            <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: '4px', margin: 0 }}>
+              View pharmaceutical batches received through verified supply chain transfers in pharmacy possession.
             </p>
           </div>
-        </div>
-      </div>
 
-      {/* Filters */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search batch number, product name, maker..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full sm:w-auto"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="RELEASED">Released</option>
-            <option value="ACTIVE">Active</option>
-            <option value="QUARANTINED">Quarantined</option>
-            <option value="RECALLED">Recalled</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center">
-            <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Loading received batches...</p>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => fetchReceivedBatches()}
+              className="btn btn-secondary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+              title="Refresh Received Inventory"
+            >
+              <RefreshCw style={{ width: '15px', height: '15px' }} />
+              Sync Inventory
+            </button>
+            <Link
+              to="/pharmacy/medicines"
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.88rem', fontWeight: '700', background: '#059669', borderColor: '#059669' }}
+            >
+              <ShoppingBag style={{ width: '16px', height: '16px' }} />
+              Procure More Stock
+            </Link>
           </div>
-        ) : filteredBatches.length === 0 ? (
-          <div className="p-12 text-center">
-            <Package className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-            <h3 className="text-base font-medium text-slate-900 dark:text-white">No received stock found</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-              Batches delivered to your pharmacy will be listed here with instant QR verification and custody timeline.
-            </p>
+        </div>
+
+        {/* Metrics Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ background: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Package style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>Total Received Batches</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a' }}>{total}</div>
+            </div>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="px-5 py-3.5">Batch Number</th>
-                  <th className="px-5 py-3.5">Product Name</th>
-                  <th className="px-5 py-3.5">Manufacturer</th>
-                  <th className="px-5 py-3.5">Stock Available</th>
-                  <th className="px-5 py-3.5">Expiry Date</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {filteredBatches.map((batch) => (
-                  <tr key={batch._id || batch.batchNumber} className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30 transition">
-                    <td className="px-5 py-4 font-mono font-bold text-slate-900 dark:text-white">
-                      {batch.batchNumber}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div>
-                        <p className="font-semibold text-slate-900 dark:text-white">{batch.productName}</p>
-                        <p className="text-xs text-slate-400">{batch.dosageForm || 'Medicinal Unit'}</p>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="truncate max-w-[140px]">{batch.manufacturer?.name || batch.manufacturer?.organization || 'Verified Lab'}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">
-                      {batch.quantity || 100} units
-                    </td>
-                    <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs">
-                      {batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadge(batch.status)}`}>
-                        {batch.status || 'RELEASED'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setQrModalBatch(batch)}
-                          className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition"
-                          title="View QR Code"
-                        >
-                          <QrCode className="w-4 h-4" />
-                        </button>
 
-                        <Link
-                          to={`/verify/${batch.batchNumber}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 bg-teal-50 dark:bg-teal-900/30 px-2.5 py-1.5 rounded-md transition"
-                        >
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                          Verify
-                        </Link>
+          <div style={{ background: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CheckCircle2 style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>Ready to Dispense</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a' }}>{readyToDispenseCount}</div>
+            </div>
+          </div>
 
-                        <Link
-                          to={`/pharmacy/batches/${batch._id || batch.batchNumber}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1.5 rounded-md transition"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          Details
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ background: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#fffbebfb', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AlertTriangle style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>Expiring Soon (&lt;30d)</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: expiringSoonCount > 0 ? '#d97706' : '#0f172a' }}>{expiringSoonCount}</div>
+            </div>
+          </div>
+
+          <div style={{ background: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#fef2f2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AlertCircle style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>Expired Batches</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: expiredCount > 0 ? '#ef4444' : '#0f172a' }}>{expiredCount}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search, Filter & Sort Controls */}
+        <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
+              <Search style={{ width: '18px', height: '18px', color: '#94a3b8', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search batch number, medicine name, manufacturer..."
+                style={{ width: '100%', padding: '9px 14px 9px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem', outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Filter style={{ width: '16px', height: '16px', color: '#64748b' }} />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem', outline: 'none', background: '#ffffff' }}
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="RECEIVED">Received</option>
+                <option value="ACTIVE">Active</option>
+                <option value="IN_TRANSIT">In Transit</option>
+                <option value="EXPIRED">Expired</option>
+                <option value="RECALLED">Recalled</option>
+              </select>
+
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem', outline: 'none', background: '#ffffff' }}
+              >
+                <option value="newest">Sort: Newest First</option>
+                <option value="oldest">Sort: Oldest First</option>
+                <option value="expiry-asc">Sort: Expiring Soonest</option>
+              </select>
+            </div>
+          </form>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#b91c1c', fontSize: '0.88rem' }}>
+            <AlertCircle style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+            <span>{error}</span>
           </div>
         )}
+
+        {/* Received Batches Table */}
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+              <Loader2 style={{ width: '36px', height: '36px', color: '#059669', animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} />
+              <p style={{ fontSize: '0.92rem', fontWeight: '600' }}>Loading received batches from database...</p>
+            </div>
+          ) : batches.length === 0 ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+              <Package style={{ width: '48px', height: '48px', color: '#cbd5e1', margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#0f172a', margin: '0 0 6px 0' }}>No Received Batches Found</h3>
+              <p style={{ fontSize: '0.88rem', color: '#64748b', margin: '0 auto 20px', maxWidth: '420px', lineHeight: '1.5' }}>
+                {search || statusFilter !== 'ALL'
+                  ? 'No received batches match your search filters.'
+                  : 'Your pharmacy has not received any pharmaceutical batch shipments yet.'}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                <Link
+                  to="/pharmacy/medicines"
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.88rem', background: '#059669', borderColor: '#059669' }}
+                >
+                  <ShoppingBag style={{ width: '16px', height: '16px' }} />
+                  Browse Medicine Catalog
+                </Link>
+                <Link
+                  to="/pharmacy/orders"
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.88rem' }}
+                >
+                  View Purchase Orders
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <th style={{ padding: '14px 18px' }}>Batch Number</th>
+                    <th style={{ padding: '14px 18px' }}>Product & Formulary</th>
+                    <th style={{ padding: '14px 18px' }}>Manufacturer</th>
+                    <th style={{ padding: '14px 18px' }}>Current Stock</th>
+                    <th style={{ padding: '14px 18px' }}>Expiry Date</th>
+                    <th style={{ padding: '14px 18px' }}>Custody Status</th>
+                    <th style={{ padding: '14px 18px', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody style={{ divideY: '1px solid #f1f5f9' }}>
+                  {batches.map((batch) => {
+                    const prodName = batch.product?.name || batch.productName || 'Pharmaceutical Product';
+                    const dosageForm = batch.product?.dosageForm || batch.dosageForm || 'Formulary Unit';
+                    const strength = batch.product?.strength || batch.strength || '';
+                    const mfgName = batch.manufacturer?.name || batch.manufacturerName || 'Authorized Manufacturer';
+                    const expDate = batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : 'N/A';
+                    const isExpiringSoon = new Date(batch.expiryDate) > now && new Date(batch.expiryDate) <= thirtyDaysFromNow;
+                    const isExpired = new Date(batch.expiryDate) <= now;
+
+                    return (
+                      <tr key={batch._id || batch.batchNumber} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '16px 18px', fontFamily: 'monospace', fontWeight: '800', color: '#059669' }}>
+                          #{batch.batchNumber}
+                        </td>
+                        <td style={{ padding: '16px 18px' }}>
+                          <div>
+                            <strong style={{ fontSize: '0.92rem', color: '#0f172a', display: 'block' }}>{prodName}</strong>
+                            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                              {dosageForm} {strength ? `• ${strength}` : ''}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px 18px', color: '#334155' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Building2 style={{ width: '14px', height: '14px', color: '#64748b' }} />
+                            <span>{mfgName}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px 18px', fontWeight: '700', color: batch.quantity < 20 ? '#d97706' : '#0f172a' }}>
+                          {batch.quantity} {batch.unit || 'units'}
+                        </td>
+                        <td style={{ padding: '16px 18px', fontSize: '0.82rem', color: isExpired ? '#b91c1c' : isExpiringSoon ? '#b45309' : '#475569', fontWeight: isExpired || isExpiringSoon ? '700' : '500' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Calendar style={{ width: '13px', height: '13px', color: '#94a3b8' }} />
+                            {expDate}
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px 18px' }}>
+                          {getStatusBadge(batch.status, batch.expiryDate)}
+                        </td>
+                        <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button
+                              onClick={() => setQrModalBatch(batch)}
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '6px 10px' }}
+                              title="View Batch QR Code"
+                            >
+                              <QrCode style={{ width: '14px', height: '14px' }} />
+                            </button>
+                            <Link
+                              to={`/verify/${encodeURIComponent(batch.batchNumber)}`}
+                              className="btn btn-secondary btn-sm"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: '#047857' }}
+                            >
+                              <ShieldCheck style={{ width: '13px', height: '13px' }} />
+                              Verify
+                            </Link>
+                            <Link
+                              to={`/pharmacy/batches/${batch._id || batch.batchNumber}`}
+                              className="btn btn-secondary btn-sm"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: '700' }}
+                            >
+                              <Eye style={{ width: '13px', height: '13px' }} />
+                              Details
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* QR Code Modal */}
       {qrModalBatch && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 relative animate-in fade-in zoom-in duration-150">
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', maxWidth: '380px', width: '100%', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center', position: 'relative' }}>
             <button
               onClick={() => setQrModalBatch(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
             >
-              <X className="w-5 h-5" />
+              <X style={{ width: '20px', height: '20px' }} />
             </button>
 
-            <div className="text-center space-y-4">
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl w-14 h-14 mx-auto flex items-center justify-center">
-                <QrCode className="w-8 h-8" />
-              </div>
-
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                  {qrModalBatch.productName}
-                </h3>
-                <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">
-                  Batch: {qrModalBatch.batchNumber}
-                </p>
-              </div>
-
-              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-inner flex justify-center">
-                <QRCodeSVG
-                  value={JSON.stringify({
-                    batchNumber: qrModalBatch.batchNumber,
-                    productName: qrModalBatch.productName,
-                    verifyUrl: `${window.location.origin}/verify/${qrModalBatch.batchNumber}`
-                  })}
-                  size={180}
-                  level="H"
-                />
-              </div>
-
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Patients and regulatory inspectors can scan this QR code to verify medicine authenticity instantly.
-              </p>
-
-              <Link
-                to={`/verify/${qrModalBatch.batchNumber}`}
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                Launch 9-Point Verification
-              </Link>
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <QrCode style={{ width: '26px', height: '26px' }} />
             </div>
+
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', margin: '0 0 4px 0' }}>
+              {qrModalBatch.product?.name || qrModalBatch.productName || 'Pharmaceutical Product'}
+            </h3>
+            <p style={{ fontSize: '0.82rem', fontFamily: 'monospace', color: '#059669', margin: '0 0 16px 0', fontWeight: '700' }}>
+              Batch #{qrModalBatch.batchNumber}
+            </p>
+
+            <div style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'inline-block', marginBottom: '16px' }}>
+              <QRCodeSVG
+                value={`${window.location.origin}/verify/${qrModalBatch.batchNumber}`}
+                size={180}
+                level="H"
+              />
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 16px 0', lineHeight: '1.4' }}>
+              Scan this QR code to access 21 CFR Part 11 cryptographic verification and supply chain provenance.
+            </p>
+
+            <Link
+              to={`/verify/${encodeURIComponent(qrModalBatch.batchNumber)}`}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '10px', fontSize: '0.85rem', fontWeight: '700', background: '#059669', borderColor: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+            >
+              <ShieldCheck style={{ width: '16px', height: '16px' }} />
+              Open Public QR Verification Page
+            </Link>
           </div>
         </div>
       )}

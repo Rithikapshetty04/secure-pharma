@@ -274,9 +274,6 @@ const getPharmacyMedicines = async (req, res, next) => {
   }
 };
 
-/**
- * GET /api/pharmacy/received
- */
 const getPharmacyReceivedBatches = async (req, res, next) => {
   try {
     const pharmacyOrgId = req.user.organization?._id || req.user.organization;
@@ -287,22 +284,77 @@ const getPharmacyReceivedBatches = async (req, res, next) => {
       });
     }
 
+    const { search, status, sort = "newest", page = 1, limit = 50 } = req.query;
+
+    // 1. Fetch supply chain events where pharmacy is recipient
     const events = await SupplyChainEvent.find({
       toOrganization: pharmacyOrgId,
-      eventType: { $in: ["RECEIVED", "DELIVERED", "TRANSFERRED"] },
     }).sort({ eventDate: -1 });
 
-    const batchIds = [...new Set(events.map((e) => (e.batch?._id || e.batch)?.toString()).filter(Boolean))];
+    const eventBatchIds = events.map((e) => (e.batch?._id || e.batch)?.toString()).filter(Boolean);
 
-    const batches = await Batch.find({ _id: { $in: batchIds } })
-      .populate("product")
-      .populate("manufacturer", "name type address contactEmail")
-      .sort({ updatedAt: -1 });
+    // 2. Query batches where currentHolder is pharmacy OR referenced in supply chain events to pharmacy
+    const batchFilter = {
+      $or: [
+        { _id: { $in: eventBatchIds } },
+        { currentHolder: pharmacyOrgId },
+      ],
+    };
+
+    if (status && status.toUpperCase() !== "ALL") {
+      batchFilter.status = status.toUpperCase();
+    }
+
+    const now = new Date();
+    if (status === "EXPIRED") {
+      batchFilter.expiryDate = { $lt: now };
+    }
+
+    let allBatches = await Batch.find(batchFilter)
+      .populate("product", "name genericName brandName productCode dosageForm strength category unitPrice")
+      .populate("manufacturer", "name type address contactEmail status")
+      .populate("currentHolder", "name type address contactEmail");
+
+    // 3. Client-side search filtering on populated fields if search provided
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      allBatches = allBatches.filter((b) => {
+        const batchNum = (b.batchNumber || "").toLowerCase();
+        const prodName = (b.product?.name || "").toLowerCase();
+        const genName = (b.product?.genericName || "").toLowerCase();
+        const prodCode = (b.product?.productCode || "").toLowerCase();
+        const mfgName = (b.manufacturer?.name || "").toLowerCase();
+        return (
+          batchNum.includes(q) ||
+          prodName.includes(q) ||
+          genName.includes(q) ||
+          prodCode.includes(q) ||
+          mfgName.includes(q)
+        );
+      });
+    }
+
+    // 4. Sorting
+    if (sort === "oldest") {
+      allBatches.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    } else if (sort === "expiry-asc") {
+      allBatches.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+    } else {
+      allBatches.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+    }
+
+    const total = allBatches.length;
+    const skip = (Number(page) - 1) * Number(limit);
+    const paginatedBatches = allBatches.slice(skip, skip + Number(limit));
 
     return res.status(200).json({
       success: true,
-      total: batches.length,
-      batches,
+      total,
+      count: paginatedBatches.length,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / Number(limit)) || 1,
+      batches: paginatedBatches,
     });
   } catch (error) {
     next(error);
@@ -626,6 +678,197 @@ const clearPharmacyCart = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/pharmacy/history
+ * Returns real, deduplicated, chronological audit & supply chain events scoped strictly to the authenticated pharmacy.
+ */
+const getPharmacyHistory = async (req, res, next) => {
+  try {
+    const pharmacyOrgId = req.user.organization?._id || req.user.organization;
+    if (!pharmacyOrgId) {
+      return res.status(403).json({
+        success: false,
+        message: "Access forbidden: User is not associated with a registered Pharmacy organization.",
+      });
+    }
+
+    const { search, category = "ALL", days = "ALL", page = 1, limit = 50 } = req.query;
+
+    let dateBoundary = null;
+    const now = new Date();
+    if (days === "TODAY") {
+      dateBoundary = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (days === "7") {
+      dateBoundary = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (days === "30") {
+      dateBoundary = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const combinedEvents = [];
+
+    // 1. Fetch SupplyChainEvents involving pharmacy
+    const scFilter = {
+      $or: [{ fromOrganization: pharmacyOrgId }, { toOrganization: pharmacyOrgId }],
+    };
+    if (dateBoundary) {
+      scFilter.eventDate = { $gte: dateBoundary };
+    }
+
+    const scEvents = await SupplyChainEvent.find(scFilter)
+      .populate({
+        path: "batch",
+        populate: { path: "product", select: "name productCode dosageForm strength" },
+      })
+      .populate("fromOrganization", "name type address")
+      .populate("toOrganization", "name type address")
+      .populate("user", "name role")
+      .sort({ eventDate: -1 });
+
+    scEvents.forEach((evt) => {
+      const isRecipient = (evt.toOrganization?._id || evt.toOrganization)?.toString() === pharmacyOrgId.toString();
+      const batchObj = evt.batch || {};
+      const prodObj = batchObj.product || {};
+
+      let cat = "TRANSFERS";
+      let title = `Supply Chain Event: ${evt.eventType}`;
+      if (evt.eventType === "RECEIVED" || evt.eventType === "DELIVERED") {
+        cat = "RECEIPTS";
+        title = `Batch #${batchObj.batchNumber || "UNASSIGNED"} Received`;
+      } else if (evt.eventType === "MANUFACTURED") {
+        cat = "TRANSFERS";
+        title = `Batch #${batchObj.batchNumber || "UNASSIGNED"} Certified`;
+      }
+
+      combinedEvents.push({
+        _id: `sc-${evt._id}`,
+        source: "SUPPLY_CHAIN",
+        eventType: evt.eventType,
+        category: cat,
+        title,
+        description: evt.notes || (isRecipient ? `Batch received from ${evt.fromOrganization?.name || "Distributor"}` : `Batch dispatched to ${evt.toOrganization?.name || "Recipient"}`),
+        timestamp: evt.eventDate || evt.createdAt,
+        actorName: evt.user?.name || "Supply Chain Node",
+        actorOrg: isRecipient ? evt.fromOrganization?.name : evt.toOrganization?.name,
+        batchNumber: batchObj.batchNumber || null,
+        batchId: batchObj._id || evt.batch,
+        productName: prodObj.name || batchObj.productName || "Pharmaceutical Product",
+        quantity: evt.quantity || batchObj.quantity || null,
+        transactionHash: evt.transactionHash || null,
+        location: evt.location || "",
+        status: evt.eventType,
+      });
+    });
+
+    // 2. Fetch Orders created by pharmacy
+    const orderFilter = { pharmacy: pharmacyOrgId };
+    if (dateBoundary) {
+      orderFilter.createdAt = { $gte: dateBoundary };
+    }
+
+    const orders = await Order.find(orderFilter)
+      .populate("distributor", "name type address")
+      .sort({ createdAt: -1 });
+
+    orders.forEach((ord) => {
+      const isCancelled = ord.status === "CANCELLED" || ord.status === "REJECTED";
+      const cat = isCancelled ? "CANCELLATIONS" : "ORDERS";
+      const title = isCancelled
+        ? `Purchase Order #${ord.orderId} ${ord.status}`
+        : `Purchase Order #${ord.orderId} Placed`;
+
+      const firstItem = ord.items && ord.items.length > 0 ? ord.items[0] : null;
+
+      combinedEvents.push({
+        _id: `ord-${ord._id}`,
+        source: "ORDER",
+        eventType: isCancelled ? "ORDER_CANCELLED" : "ORDER_PLACED",
+        category: cat,
+        title,
+        description: `Order containing ${ord.totalQuantity} units (${ord.items?.length || 0} line items) to ${ord.distributorName || ord.distributor?.name || "Distributor"}. Total: $${(ord.totalAmount || 0).toFixed(2)}`,
+        timestamp: ord.createdAt,
+        actorName: ord.pharmacyName || "Pharmacy Dispensary",
+        actorOrg: ord.distributorName || ord.distributor?.name || "Distributor",
+        orderId: ord.orderId,
+        orderMongoId: ord._id,
+        batchNumber: firstItem?.batchNumber || null,
+        batchId: firstItem?.batch || null,
+        productName: firstItem?.productName || "Pharmaceutical Formulary",
+        quantity: ord.totalQuantity,
+        transactionHash: null,
+        status: ord.status,
+      });
+    });
+
+    // 3. Fetch AuditLogs for pharmacy
+    const auditFilter = { organization: pharmacyOrgId };
+    if (dateBoundary) {
+      auditFilter.createdAt = { $gte: dateBoundary };
+    }
+
+    const AuditLog = require("../../models/AuditLog");
+    const auditLogs = await AuditLog.find(auditFilter)
+      .populate("user", "name role")
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    auditLogs.forEach((log) => {
+      combinedEvents.push({
+        _id: `aud-${log._id}`,
+        source: "AUDIT",
+        eventType: log.action,
+        category: "AUDIT",
+        title: `Audit Action: ${log.action.replace(/_/g, " ")}`,
+        description: typeof log.details === "string" ? log.details : JSON.stringify(log.details || {}),
+        timestamp: log.createdAt,
+        actorName: log.user?.name || "Pharmacy Admin",
+        actorOrg: req.user.organization?.name || "Pharmacy Dispensary",
+        batchNumber: log.metadata?.batchNumber || null,
+        orderId: log.metadata?.orderId || null,
+        status: "LOGGED",
+      });
+    });
+
+    // 4. Sort all combined events chronologically (newest first)
+    combinedEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // 5. Apply Category filter if specified
+    let filtered = combinedEvents;
+    if (category && category.toUpperCase() !== "ALL") {
+      filtered = filtered.filter((e) => e.category.toUpperCase() === category.toUpperCase());
+    }
+
+    // 6. Apply Search filter if specified
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      filtered = filtered.filter((e) => {
+        const titleMatch = (e.title || "").toLowerCase().includes(q);
+        const descMatch = (e.description || "").toLowerCase().includes(q);
+        const bMatch = (e.batchNumber || "").toLowerCase().includes(q);
+        const oMatch = (e.orderId || "").toLowerCase().includes(q);
+        const pMatch = (e.productName || "").toLowerCase().includes(q);
+        const typeMatch = (e.eventType || "").toLowerCase().includes(q);
+        return titleMatch || descMatch || bMatch || oMatch || pMatch || typeMatch;
+      });
+    }
+
+    const total = filtered.length;
+    const skip = (Number(page) - 1) * Number(limit);
+    const paginatedEvents = filtered.slice(skip, skip + Number(limit));
+
+    return res.status(200).json({
+      success: true,
+      total,
+      count: paginatedEvents.length,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / Number(limit)) || 1,
+      events: paginatedEvents,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getPharmacyDashboard,
   getPharmacyMedicines,
@@ -635,4 +878,6 @@ module.exports = {
   updatePharmacyCartItem,
   removePharmacyCartItem,
   clearPharmacyCart,
+  getPharmacyHistory,
 };
+

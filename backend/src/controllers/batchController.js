@@ -88,21 +88,35 @@ const getAllBatches = async (req, res, next) => {
 const getBatchById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const batch = await Batch.findById(id)
-      .populate({
-        path: "product",
-        populate: { path: "manufacturer", select: "name type address status contactEmail" },
-      })
-      .populate("manufacturer", "name type address status contactEmail");
+    let batch = null;
+
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      batch = await Batch.findById(id)
+        .populate({
+          path: "product",
+          populate: { path: "manufacturer", select: "name type address status contactEmail" },
+        })
+        .populate("manufacturer", "name type address status contactEmail")
+        .populate("currentHolder", "name type address status contactEmail");
+    }
+    if (!batch) {
+      batch = await Batch.findOne({ batchNumber: id.trim().toUpperCase() })
+        .populate({
+          path: "product",
+          populate: { path: "manufacturer", select: "name type address status contactEmail" },
+        })
+        .populate("manufacturer", "name type address status contactEmail")
+        .populate("currentHolder", "name type address status contactEmail");
+    }
 
     if (!batch) {
       return res.status(404).json({
         success: false,
-        message: "Pharmaceutical batch not found.",
+        message: "Pharmaceutical batch not found in ledger.",
       });
     }
 
-    // Role Ownership / Authorization Check for Manufacturer & Distributor (IDOR Prevention)
+    // Role Ownership / Authorization Check (IDOR Prevention)
     if (req.user.role === "MANUFACTURER") {
       const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
       const batchMfgId = (batch.manufacturer?._id || batch.manufacturer || "").toString();
@@ -124,6 +138,19 @@ const getBatchById = async (req, res, next) => {
           message: "Access forbidden: You do not have authorization to view this batch.",
         });
       }
+    } else if (req.user.role === "PHARMACY") {
+      const pharmOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+      const isHolder = (batch.currentHolder?._id || batch.currentHolder || "").toString() === pharmOrgId;
+      const hasAccess = await SupplyChainEvent.exists({
+        batch: batch._id,
+        $or: [{ fromOrganization: pharmOrgId }, { toOrganization: pharmOrgId }],
+      });
+      if (!isHolder && !hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: "Access forbidden: You do not have authorization to view this batch.",
+        });
+      }
     }
 
     const events = await SupplyChainEvent.find({ batch: batch._id })
@@ -132,8 +159,8 @@ const getBatchById = async (req, res, next) => {
       .populate("user", "name role")
       .sort({ eventDate: 1 });
 
-    // Derive current custodian from latest event or manufacturer
-    let currentCustodian = batch.manufacturer;
+    // Derive current custodian from latest event or batch currentHolder/manufacturer
+    let currentCustodian = batch.currentHolder || batch.manufacturer;
     if (events && events.length > 0) {
       const latestEvent = events[events.length - 1];
       if (latestEvent.toOrganization) {
@@ -141,11 +168,36 @@ const getBatchById = async (req, res, next) => {
       }
     }
 
+    // Cryptographic verification check
+    let verificationState = "UNAVAILABLE";
+    let calculatedHash = "";
+
+    if (batch.batchHash || batch.blockchainTxHash) {
+      calculatedHash = BlockchainService.generateBatchHash({
+        batchNumber: batch.batchNumber,
+        productCode: batch.product?.productCode || "PC-FORMULARY",
+        manufacturingDate: batch.manufacturingDate,
+        expiryDate: batch.expiryDate,
+        quantity: batch.quantity,
+        manufacturerId: batch.manufacturer?._id || batch.manufacturer,
+      });
+
+      const isMatch = BlockchainService.verifyRecordIntegrity(calculatedHash, batch.batchHash || batch.blockchainTxHash);
+      verificationState = isMatch ? "VERIFIED" : "MISMATCH";
+    }
+
     return res.status(200).json({
       success: true,
       batch,
       events,
       currentCustodian,
+      verification: {
+        state: verificationState,
+        calculatedHash,
+        storedHash: batch.batchHash || batch.blockchainTxHash || null,
+        network: batch.blockchainNetwork || "Sepolia Ethereum Testnet (Simulated Proof)",
+        blockNumber: batch.blockNumber || null,
+      },
     });
   } catch (error) {
     next(error);

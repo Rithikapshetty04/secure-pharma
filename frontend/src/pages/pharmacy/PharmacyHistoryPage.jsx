@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { supplyChainApi } from '../../services/api';
+import { api } from '../../api';
 import {
   History,
   Search,
@@ -9,208 +9,388 @@ import {
   ShieldCheck,
   Calendar,
   Building2,
-  MapPin,
   Clock,
   RefreshCw,
-  Eye
+  Eye,
+  ShoppingBag,
+  Package,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  Loader2,
 } from 'lucide-react';
 
 const PharmacyHistoryPage = () => {
   const [events, setEvents] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [search, setSearch] = useState('');
-  const [eventTypeFilter, setEventTypeFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [daysFilter, setDaysFilter] = useState('ALL');
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const res = await supplyChainApi.getEvents({ limit: 100 });
-      setEvents(res.data?.events || res.data || []);
+      const res = await api.getPharmacyHistory({
+        search: search.trim(),
+        category: categoryFilter,
+        days: daysFilter,
+      });
+
+      if (res && res.success) {
+        setEvents(res.events || []);
+        setTotal(res.total || (res.events ? res.events.length : 0));
+      } else {
+        setError(res?.message || 'Failed to fetch pharmacy history log.');
+      }
     } catch (err) {
       console.error('Error fetching pharmacy history:', err);
+      setError(err.message || 'Server connection error loading audit trail.');
     } finally {
       setLoading(false);
     }
+  }, [search, categoryFilter, daysFilter]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    fetchHistory();
   };
 
-  const getEventBadge = (type) => {
-    switch (type) {
-      case 'RECEIVED':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800';
-      case 'DELIVERED':
-        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
-      case 'SOLD':
-      case 'DISPENSED':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800';
-      case 'TRANSFERRED':
-        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800';
+  // Counts by category
+  const orderEventsCount = events.filter((e) => e.category === 'ORDERS').length;
+  const receiptEventsCount = events.filter((e) => e.category === 'RECEIPTS' || e.category === 'TRANSFERS').length;
+  const auditEventsCount = events.filter((e) => e.category === 'AUDIT' || e.category === 'CANCELLATIONS').length;
+
+  const getCategoryBadge = (category, eventType) => {
+    switch (category) {
+      case 'RECEIPTS':
+      case 'TRANSFERS':
+        return (
+          <span style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontSize: '0.72rem', fontWeight: '700', padding: '2px 8px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Package style={{ width: '12px', height: '12px' }} />
+            {eventType || 'Inventory Transfer'}
+          </span>
+        );
+      case 'ORDERS':
+        return (
+          <span style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: '0.72rem', fontWeight: '700', padding: '2px 8px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <ShoppingBag style={{ width: '12px', height: '12px' }} />
+            {eventType || 'Purchase Order'}
+          </span>
+        );
+      case 'CANCELLATIONS':
+        return (
+          <span style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', fontSize: '0.72rem', fontWeight: '700', padding: '2px 8px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <XCircle style={{ width: '12px', height: '12px' }} />
+            Order Cancelled
+          </span>
+        );
+      case 'AUDIT':
       default:
-        return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+        return (
+          <span style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', fontSize: '0.72rem', fontWeight: '700', padding: '2px 8px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <FileText style={{ width: '12px', height: '12px' }} />
+            System Audit
+          </span>
+        );
     }
   };
 
-  const filteredEvents = events.filter(e => {
-    const bNum = e.batch?.batchNumber || e.batchNumber || '';
-    const prodName = e.batch?.productName || e.productName || '';
-    const loc = e.location?.facility || e.location?.city || '';
-    const matchesSearch =
-      bNum.toLowerCase().includes(search.toLowerCase()) ||
-      prodName.toLowerCase().includes(search.toLowerCase()) ||
-      loc.toLowerCase().includes(search.toLowerCase());
-
-    const matchesType = eventTypeFilter === 'ALL' || e.eventType === eventTypeFilter;
-    return matchesSearch && matchesType;
-  });
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-            <History className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
-            Pharmacy Custody & Dispensing History
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Complete cryptographic audit trail of all medicine receipts, dispensary custody, and dispensing logs
-          </p>
-        </div>
-        <button
-          onClick={fetchHistory}
-          className="inline-flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg transition shadow-sm self-start sm:self-auto"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search batch, medicine, or location..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <select
-            value={eventTypeFilter}
-            onChange={(e) => setEventTypeFilter(e.target.value)}
-            className="text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full sm:w-auto"
-          >
-            <option value="ALL">All Event Types</option>
-            <option value="RECEIVED">Received</option>
-            <option value="DELIVERED">Delivered</option>
-            <option value="SOLD">Dispensed / Sold</option>
-            <option value="TRANSFERRED">Transferred</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Timeline */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
-        {loading ? (
-          <div className="p-12 text-center">
-            <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Loading audit history...</p>
-          </div>
-        ) : filteredEvents.length === 0 ? (
-          <div className="p-12 text-center">
-            <History className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-            <h3 className="text-base font-medium text-slate-900 dark:text-white">No history records found</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-              Supply chain lifecycle events recorded for your pharmacy will appear here chronologically.
+    <div style={{ minHeight: 'calc(100vh - 72px)', background: '#f8fafc', padding: '32px 20px 80px' }}>
+      <div style={{ maxWidth: '1240px', margin: '0 auto' }}>
+        {/* Header Bar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ background: '#ecfdf5', color: '#047857', fontSize: '0.75rem', fontWeight: '700', padding: '2px 8px', borderRadius: '4px' }}>
+                Operational Log
+              </span>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                Authenticated Pharmacy Audit & Provenance History
+              </span>
+            </div>
+            <h1 style={{ fontSize: '1.85rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+              Pharmacy History & Audit Trail
+            </h1>
+            <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: '4px', margin: 0 }}>
+              Chronological ledger of purchase orders, batch receipts, custody transfers, and system audit actions.
             </p>
           </div>
-        ) : (
-          <div className="relative pl-6 sm:pl-8 space-y-8 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
-            {filteredEvents.map((evt, idx) => {
-              const bNumber = evt.batch?.batchNumber || evt.batchNumber || 'UNKNOWN';
-              const pName = evt.batch?.productName || evt.productName || 'Pharmaceutical Product';
-              const batchId = evt.batch?._id || evt.batch || bNumber;
 
-              return (
-                <div key={evt._id || idx} className="relative group">
-                  <div className="absolute -left-6 sm:-left-8 top-1.5 w-6 h-6 rounded-full bg-white dark:bg-slate-800 border-2 border-emerald-600 flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-emerald-600"></div>
-                  </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => fetchHistory()}
+              className="btn btn-secondary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+              title="Refresh History Logs"
+            >
+              <RefreshCw style={{ width: '15px', height: '15px' }} />
+              Sync Trail
+            </button>
+            <Link
+              to="/pharmacy/orders"
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.88rem', fontWeight: '700', background: '#059669', borderColor: '#059669' }}
+            >
+              <ShoppingBag style={{ width: '16px', height: '16px' }} />
+              View Orders
+            </Link>
+          </div>
+        </div>
 
-                  <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl p-4 sm:p-5 hover:border-emerald-200 dark:hover:border-emerald-800/60 transition">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${getEventBadge(evt.eventType)}`}>
-                          {evt.eventType}
-                        </span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-white">
-                          Batch: {bNumber}
-                        </span>
-                        <span className="text-sm text-slate-600 dark:text-slate-300 font-medium">
-                          ({pName})
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                        <Clock className="w-3.5 h-3.5" />
-                        {new Date(evt.timestamp || evt.createdAt || Date.now()).toLocaleString()}
-                      </div>
-                    </div>
+        {/* Summary Metrics Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ background: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <History style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>Total Trail Entries</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a' }}>{total}</div>
+            </div>
+          </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs text-slate-600 dark:text-slate-300 mb-3">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span>Actor / Custodian: <strong className="text-slate-800 dark:text-slate-200">{evt.performedBy?.name || evt.performedBy?.organization || 'Pharmacy Node'}</strong></span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span>Location: <strong className="text-slate-800 dark:text-slate-200">{evt.location?.facility || evt.location?.city || 'Pharmacy Dispensary'}</strong></span>
-                      </div>
-                    </div>
+          <div style={{ background: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ShoppingBag style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>Order Events</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a' }}>{orderEventsCount}</div>
+            </div>
+          </div>
 
-                    {evt.notes && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700/50 mb-3">
-                        <span className="font-medium text-slate-700 dark:text-slate-300">Notes: </span>
-                        {evt.notes}
-                      </p>
-                    )}
+          <div style={{ background: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#ecfdf5', color: '#047857', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Package style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>Batch & Receipts</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a' }}>{receiptEventsCount}</div>
+            </div>
+          </div>
 
-                    {evt.dataHash && (
-                      <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 mb-3">
-                        Event Hash: {evt.dataHash}
-                      </div>
-                    )}
+          <div style={{ background: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileText style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>Audit & Actions</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a' }}>{auditEventsCount}</div>
+            </div>
+          </div>
+        </div>
 
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700/50">
-                      <Link
-                        to={`/pharmacy/batches/${batchId}`}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-                      >
-                        View Batch
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                      <span className="text-slate-300 dark:text-slate-600">•</span>
-                      <Link
-                        to={`/verify/${bNumber}`}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        Verify
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+        {/* Search, Filter & Date Bar */}
+        <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
+              <Search style={{ width: '18px', height: '18px', color: '#94a3b8', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search Order ID, batch number, medicine name, action..."
+                style={{ width: '100%', padding: '9px 14px 9px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem', outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Filter style={{ width: '16px', height: '16px', color: '#64748b' }} />
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem', outline: 'none', background: '#ffffff' }}
+              >
+                <option value="ALL">All Categories</option>
+                <option value="ORDERS">Orders</option>
+                <option value="RECEIPTS">Batch Receipts</option>
+                <option value="TRANSFERS">Supply Transfers</option>
+                <option value="CANCELLATIONS">Cancellations</option>
+                <option value="AUDIT">System Audit</option>
+              </select>
+
+              <select
+                value={daysFilter}
+                onChange={(e) => setDaysFilter(e.target.value)}
+                style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem', outline: 'none', background: '#ffffff' }}
+              >
+                <option value="ALL">All Time</option>
+                <option value="TODAY">Today Only</option>
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+              </select>
+            </div>
+          </form>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#b91c1c', fontSize: '0.88rem' }}>
+            <AlertCircle style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+            <span>{error}</span>
           </div>
         )}
+
+        {/* Timeline Container */}
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', padding: '24px' }}>
+          {loading ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+              <Loader2 style={{ width: '36px', height: '36px', color: '#059669', animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} />
+              <p style={{ fontSize: '0.92rem', fontWeight: '600' }}>Loading audit history entries from database...</p>
+            </div>
+          ) : events.length === 0 ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+              <History style={{ width: '48px', height: '48px', color: '#cbd5e1', margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#0f172a', margin: '0 0 6px 0' }}>No Activity Recorded Yet</h3>
+              <p style={{ fontSize: '0.88rem', color: '#64748b', margin: '0 auto 20px', maxWidth: '420px', lineHeight: '1.5' }}>
+                {search || categoryFilter !== 'ALL' || daysFilter !== 'ALL'
+                  ? 'No audit log entries match your search filters.'
+                  : 'Operational events and purchase orders recorded for your pharmacy will appear here chronologically.'}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                <Link
+                  to="/pharmacy/medicines"
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.88rem', background: '#059669', borderColor: '#059669' }}
+                >
+                  <ShoppingBag style={{ width: '16px', height: '16px' }} />
+                  Browse Medicines
+                </Link>
+                <Link
+                  to="/pharmacy/orders"
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.88rem' }}
+                >
+                  View Orders
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {events.map((evt) => {
+                const eventDate = new Date(evt.timestamp).toLocaleString();
+                const hasOrderLink = evt.orderMongoId || evt.orderId;
+                const hasBatchLink = evt.batchId || evt.batchNumber;
+
+                return (
+                  <div
+                    key={evt._id}
+                    style={{
+                      background: '#f8fafc',
+                      borderRadius: '14px',
+                      border: '1px solid #e2e8f0',
+                      padding: '20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        {getCategoryBadge(evt.category, evt.eventType)}
+                        {evt.batchNumber && (
+                          <span style={{ fontSize: '0.78rem', fontFamily: 'monospace', color: '#059669', background: '#ecfdf5', padding: '2px 8px', borderRadius: '4px', fontWeight: '700' }}>
+                            Batch #{evt.batchNumber}
+                          </span>
+                        )}
+                        {evt.orderId && (
+                          <span style={{ fontSize: '0.78rem', fontFamily: 'monospace', color: '#2563eb', background: '#eff6ff', padding: '2px 8px', borderRadius: '4px', fontWeight: '700' }}>
+                            Order #{evt.orderId}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}>
+                        <Clock style={{ width: '13px', height: '13px', color: '#94a3b8' }} />
+                        {eventDate}
+                      </div>
+                    </div>
+
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#0f172a', margin: '2px 0 0 0' }}>
+                      {evt.title}
+                    </h3>
+
+                    <p style={{ fontSize: '0.86rem', color: '#475569', margin: 0, lineHeight: '1.5' }}>
+                      {evt.description}
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.78rem', color: '#64748b', paddingTop: '6px' }}>
+                      {evt.actorName && (
+                        <span>
+                          Actor: <strong style={{ color: '#0f172a' }}>{evt.actorName}</strong>
+                        </span>
+                      )}
+                      {evt.actorOrg && (
+                        <span>
+                          Entity: <strong style={{ color: '#0f172a' }}>{evt.actorOrg}</strong>
+                        </span>
+                      )}
+                      {evt.quantity && (
+                        <span>
+                          Quantity: <strong style={{ color: '#059669' }}>{evt.quantity} units</strong>
+                        </span>
+                      )}
+                    </div>
+
+                    {evt.transactionHash && (
+                      <div style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#64748b', background: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', wordBreak: 'break-all' }}>
+                        Ledger Hash: {evt.transactionHash}
+                      </div>
+                    )}
+
+                    {/* Contextual Links Row */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '10px', borderTop: '1px dashed #e2e8f0' }}>
+                      {hasOrderLink && (
+                        <Link
+                          to={`/pharmacy/orders/${evt.orderMongoId || evt.orderId}`}
+                          className="btn btn-secondary btn-sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: '700' }}
+                        >
+                          <ShoppingBag style={{ width: '13px', height: '13px' }} />
+                          View Purchase Order
+                          <ArrowRight style={{ width: '12px', height: '12px' }} />
+                        </Link>
+                      )}
+
+                      {hasBatchLink && (
+                        <Link
+                          to={`/pharmacy/batches/${evt.batchId || evt.batchNumber}`}
+                          className="btn btn-secondary btn-sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: '700' }}
+                        >
+                          <Package style={{ width: '13px', height: '13px' }} />
+                          View Batch Details
+                          <ArrowRight style={{ width: '12px', height: '12px' }} />
+                        </Link>
+                      )}
+
+                      {evt.batchNumber && (
+                        <Link
+                          to={`/verify/${encodeURIComponent(evt.batchNumber)}`}
+                          className="btn btn-secondary btn-sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: '#047857' }}
+                        >
+                          <ShieldCheck style={{ width: '13px', height: '13px' }} />
+                          Verify
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

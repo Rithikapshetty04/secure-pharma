@@ -2,12 +2,13 @@ const Order = require("../../models/Order");
 const Organization = require("../../models/Organization");
 const Batch = require("../../models/Batch");
 const Product = require("../../models/Product");
+const Cart = require("../../models/Cart");
 const { logAuditAction } = require("../utils/auditLogger");
 const { createNotification } = require("../services/notificationService");
 
 /**
  * POST /api/orders
- * Creates a new pharmacy purchase order in MongoDB.
+ * Creates a new pharmacy purchase order in MongoDB from cart or provided items.
  */
 const createOrder = async (req, res, next) => {
   try {
@@ -19,19 +20,31 @@ const createOrder = async (req, res, next) => {
       });
     }
 
-    const { items, distributorId, shippingAddress, notes } = req.body;
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Order items list cannot be empty.",
-      });
+    // 1. Retrieve cart if items are not explicitly provided
+    let itemsToProcess = req.body.items;
+    let userCart = null;
+
+    if (!itemsToProcess || !Array.isArray(itemsToProcess) || itemsToProcess.length === 0) {
+      userCart = await Cart.findOne({ pharmacy: pharmacyOrgId });
+      if (!userCart || !userCart.items || userCart.items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Procurement cart is empty. Please add medicines to your cart before placing an order.",
+        });
+      }
+      itemsToProcess = userCart.items.map((item) => ({
+        productId: item.product,
+        batchId: item.batch,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      }));
     }
 
     const pharmacyOrg = await Organization.findById(pharmacyOrgId);
     let distributorOrg = null;
 
-    if (distributorId) {
-      distributorOrg = await Organization.findById(distributorId);
+    if (req.body.distributorId) {
+      distributorOrg = await Organization.findById(req.body.distributorId);
     } else {
       // Default to first approved distributor
       distributorOrg = await Organization.findOne({ type: "DISTRIBUTOR", status: "APPROVED" });
@@ -43,8 +56,9 @@ const createOrder = async (req, res, next) => {
     let totalAmount = 0;
     const validatedItems = [];
 
-    for (const item of items) {
-      const qty = Number(item.quantity) || 1;
+    // 2. Authoritative inventory & pricing revalidation
+    for (const item of itemsToProcess) {
+      const qty = Math.max(1, Number(item.quantity) || 1);
       let productObj = null;
       let batchObj = null;
 
@@ -58,7 +72,24 @@ const createOrder = async (req, res, next) => {
         }
       }
 
-      const unitPrice = Number(item.unitPrice || productObj?.unitPrice || 45);
+      if (!productObj && !batchObj) {
+        return res.status(400).json({
+          success: false,
+          message: `Product or batch no longer exists in catalog.`,
+        });
+      }
+
+      // Revalidate stock availability
+      if (batchObj) {
+        if (batchObj.quantity < qty) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient stock for batch #${batchObj.batchNumber} (${productObj?.name || 'Medicine'}). Requested: ${qty}, Available: ${batchObj.quantity}.`,
+          });
+        }
+      }
+
+      const unitPrice = Number(productObj?.unitPrice || item.unitPrice || 45);
       const itemTotal = qty * unitPrice;
 
       totalQuantity += qty;
@@ -66,10 +97,10 @@ const createOrder = async (req, res, next) => {
 
       validatedItems.push({
         product: productObj?._id || item.productId,
-        productName: productObj?.name || item.productName || "Pharmaceutical Formulary",
-        productCode: productObj?.productCode || item.productCode || "PC-FORMULARY",
+        productName: productObj?.name || "Pharmaceutical Product",
+        productCode: productObj?.productCode || "PC-FORMULARY",
         batch: batchObj?._id || item.batchId || null,
-        batchNumber: batchObj?.batchNumber || item.batchNumber || "UNASSIGNED",
+        batchNumber: batchObj?.batchNumber || "UNASSIGNED",
         quantity: qty,
         unit: item.unit || batchObj?.unit || "Units",
         unitPrice,
@@ -77,6 +108,7 @@ const createOrder = async (req, res, next) => {
       });
     }
 
+    // 3. Save order to MongoDB
     const order = await Order.create({
       orderId,
       pharmacy: pharmacyOrgId,
@@ -87,10 +119,14 @@ const createOrder = async (req, res, next) => {
       totalQuantity,
       totalAmount,
       status: "PENDING",
-      shippingAddress: shippingAddress || pharmacyOrg?.address || "Licensed Dispensary Depot",
-      notes: notes || "Standard pharmaceutical stock order",
+      shippingAddress: req.body.shippingAddress || pharmacyOrg?.address || "Licensed Dispensary Depot",
+      notes: req.body.notes || "Standard pharmaceutical stock order",
     });
 
+    // 4. Clear pharmacy cart upon successful order placement
+    await Cart.findOneAndDelete({ pharmacy: pharmacyOrgId });
+
+    // 5. Notify distributor
     if (distributorOrg) {
       await createNotification({
         recipientOrg: distributorOrg._id,
@@ -102,6 +138,7 @@ const createOrder = async (req, res, next) => {
       });
     }
 
+    // 6. Log audit entry
     await logAuditAction({
       userId: req.user._id,
       organization: pharmacyOrgId,
@@ -124,7 +161,7 @@ const createOrder = async (req, res, next) => {
 
 /**
  * GET /api/orders
- * Returns orders for the authenticated user (Pharmacy or Distributor).
+ * Returns orders for the authenticated user (Pharmacy or Distributor) with filtering & pagination.
  */
 const getOrders = async (req, res, next) => {
   try {
@@ -186,11 +223,124 @@ const getOrders = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      total: orders.length,
+      total,
+      count: orders.length,
       page: Number(page),
       limit: Number(limit),
-      totalPages: Math.ceil(orders.length / Number(limit)) || 1,
+      totalPages: Math.ceil(total / Number(limit)) || 1,
       orders,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/orders/:id
+ * Fetches single order details with backend IDOR ownership check.
+ */
+const getOrderById = async (req, res, next) => {
+  try {
+    const userOrgId = req.user.organization?._id || req.user.organization;
+    const { id } = req.params;
+
+    let order = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      order = await Order.findById(id)
+        .populate("pharmacy", "name type address contactEmail")
+        .populate("distributor", "name type address contactEmail");
+    }
+    if (!order) {
+      order = await Order.findOne({ orderId: id.toUpperCase() })
+        .populate("pharmacy", "name type address contactEmail")
+        .populate("distributor", "name type address contactEmail");
+    }
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: `Order #${id} not found.`,
+      });
+    }
+
+    // IDOR protection check
+    const isPharmacyOwner = order.pharmacy && order.pharmacy._id.toString() === userOrgId.toString();
+    const isDistributorOwner = order.distributor && order.distributor._id.toString() === userOrgId.toString();
+    const isAdmin = ["SUPER_ADMIN", "ADMIN"].includes(req.user.role);
+
+    if (!isPharmacyOwner && !isDistributorOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied: You do not have authorization to view this purchase order.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/orders/:id/cancel
+ * Cancels a pending purchase order by pharmacy owner.
+ */
+const cancelOrder = async (req, res, next) => {
+  try {
+    const pharmacyOrgId = req.user.organization?._id || req.user.organization;
+    const { id } = req.params;
+
+    let order = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      order = await Order.findById(id);
+    }
+    if (!order) {
+      order = await Order.findOne({ orderId: id.toUpperCase() });
+    }
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: `Order #${id} not found.`,
+      });
+    }
+
+    // Authorization & ownership check
+    if (order.pharmacy.toString() !== pharmacyOrgId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied: You are not authorized to cancel this order.",
+      });
+    }
+
+    // Status check
+    if (order.status !== "PENDING") {
+      return res.status(400).json({
+        success: false,
+        message: `Order #${order.orderId} cannot be cancelled because it is currently in '${order.status}' status.`,
+      });
+    }
+
+    order.status = "CANCELLED";
+    await order.save();
+
+    await logAuditAction({
+      userId: req.user._id,
+      organization: pharmacyOrgId,
+      action: "PHARMACY_ORDER_CANCELLED",
+      entityType: "Order",
+      entityId: order._id,
+      details: { orderId: order.orderId },
+      req,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Purchase Order #${order.orderId} has been cancelled.`,
+      order,
     });
   } catch (error) {
     next(error);
@@ -265,4 +415,6 @@ async function seedDistributorOrders(distributorOrgId) {
 module.exports = {
   createOrder,
   getOrders,
+  getOrderById,
+  cancelOrder,
 };

@@ -8,6 +8,7 @@ const {
   updatePharmacyCartItem,
   removePharmacyCartItem,
   clearPharmacyCart,
+  getPharmacyHistory,
 } = require("../controllers/pharmacyController");
 const { authenticateToken, authorizeRoles } = require("../middleware/authMiddleware");
 
@@ -32,6 +33,13 @@ router.get(
   authenticateToken,
   authorizeRoles("PHARMACY", "SUPER_ADMIN", "ADMIN"),
   getPharmacyReceivedBatches
+);
+
+router.get(
+  "/history",
+  authenticateToken,
+  authorizeRoles("PHARMACY", "SUPER_ADMIN", "ADMIN"),
+  getPharmacyHistory
 );
 
 // Cart Routes

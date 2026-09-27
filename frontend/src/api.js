@@ -384,6 +384,15 @@ export const api = {
     return handleResponse(res);
   },
 
+  async getPharmacyHistory(params = {}) {
+    const query = new URLSearchParams(params);
+    const res = await fetch(`${BASE_URL}/api/pharmacy/history?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+
   // Cart
   async getPharmacyCart() {
     const res = await fetch(`${BASE_URL}/api/pharmacy/cart`, {
@@ -441,6 +450,13 @@ export const api = {
     return handleResponse(res);
   },
 
+  async getOrderById(id) {
+    const res = await fetch(`${BASE_URL}/api/orders/${encodeURIComponent(id)}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
   async createOrder(data) {
     const res = await fetch(`${BASE_URL}/api/orders`, {
       method: 'POST',
@@ -452,6 +468,15 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  async cancelOrder(id) {
+    const res = await fetch(`${BASE_URL}/api/orders/${encodeURIComponent(id)}/cancel`, {
+      method: 'PATCH',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
 
   // Verification
   async verifyProduct(identifier) {

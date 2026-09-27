@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { batchApi, supplyChainApi } from '../../services/api';
+import { api } from '../../api';
 import {
   ArrowLeft,
   ShieldCheck,
@@ -8,12 +8,17 @@ import {
   Package,
   Calendar,
   Building2,
-  MapPin,
   Clock,
   Layers,
   FileCheck,
   AlertCircle,
-  Truck
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  RefreshCw,
+  Hash,
+  Share2,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -21,206 +26,387 @@ const PharmacyBatchDetailsPage = () => {
   const { batchId } = useParams();
   const [batch, setBatch] = useState(null);
   const [events, setEvents] = useState([]);
+  const [currentCustodian, setCurrentCustodian] = useState(null);
+  const [verification, setVerification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchBatchAndProvenance();
-  }, [batchId]);
-
-  const fetchBatchAndProvenance = async () => {
+  const fetchBatchDetails = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      setError('');
-
-      const res = await batchApi.getById(batchId);
-      const batchData = res.data?.batch || res.data;
-      setBatch(batchData);
-
-      // Fetch provenance events
-      if (batchData?.batchNumber) {
-        try {
-          const eventsRes = await supplyChainApi.getBatchEvents(batchData.batchNumber);
-          setEvents(eventsRes.data?.events || eventsRes.data || []);
-        } catch (eventErr) {
-          console.error('Error fetching batch events:', eventErr);
-        }
+      const res = await api.getBatchById(batchId);
+      if (res && res.success && res.batch) {
+        setBatch(res.order || res.batch);
+        setEvents(res.events || []);
+        setCurrentCustodian(res.currentCustodian || null);
+        setVerification(res.verification || null);
+      } else {
+        setError(res?.message || 'Pharmaceutical batch not found or access denied.');
       }
     } catch (err) {
       console.error('Error fetching batch details:', err);
-      setError('Failed to load pharmaceutical batch details.');
+      setError(err.message || 'Server error loading pharmaceutical batch details.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [batchId]);
+
+  useEffect(() => {
+    fetchBatchDetails();
+  }, [fetchBatchDetails]);
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
-        <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Loading batch details and provenance...</p>
+      <div style={{ minHeight: 'calc(100vh - 72px)', background: '#f8fafc', padding: '60px 20px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ textAlign: 'center', color: '#64748b' }}>
+          <Loader2 style={{ width: '40px', height: '40px', color: '#059669', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ fontSize: '1rem', fontWeight: '600' }}>Loading Batch Details & Cryptographic Traceability...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !batch) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center max-w-lg mx-auto my-12">
-        <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Batch Not Found</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{error || 'Could not locate batch.'}</p>
-        <Link
-          to="/pharmacy/received"
-          className="inline-flex items-center gap-2 mt-6 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Received Batches
-        </Link>
+      <div style={{ minHeight: 'calc(100vh - 72px)', background: '#f8fafc', padding: '60px 20px' }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '48px 32px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+          <AlertCircle style={{ width: '48px', height: '48px', color: '#ef4444', margin: '0 auto 16px' }} />
+          <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>Batch Not Found or Access Denied</h2>
+          <p style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '8px', marginBottom: '24px', lineHeight: '1.5' }}>
+            {error || `Unable to locate pharmaceutical batch records for identifier: ${batchId}`}
+          </p>
+          <Link
+            to="/pharmacy/received"
+            className="btn btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.88rem', background: '#059669', borderColor: '#059669' }}
+          >
+            <ArrowLeft style={{ width: '16px', height: '16px' }} />
+            Back to Received Inventory
+          </Link>
+        </div>
       </div>
     );
   }
 
+  const now = new Date();
+  const expDate = new Date(batch.expiryDate);
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const isExpired = expDate <= now;
+  const isExpiringSoon = expDate > now && expDate <= thirtyDaysFromNow;
+
+  const product = batch.product || {};
+  const manufacturer = batch.manufacturer || {};
+
+  const getVerificationBadge = () => {
+    const vState = verification?.state || 'UNAVAILABLE';
+    if (vState === 'VERIFIED') {
+      return (
+        <span style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontSize: '0.78rem', fontWeight: '700', padding: '4px 12px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <ShieldCheck style={{ width: '15px', height: '15px' }} />
+          SHA-256 Ledger Verified
+        </span>
+      );
+    } else if (vState === 'MISMATCH') {
+      return (
+        <span style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', fontSize: '0.78rem', fontWeight: '700', padding: '4px 12px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <AlertCircle style={{ width: '15px', height: '15px' }} />
+          Hash Mismatch Detected
+        </span>
+      );
+    } else {
+      return (
+        <span style={{ background: '#fffbebfb', color: '#b45309', border: '1px solid #fde68a', fontSize: '0.78rem', fontWeight: '700', padding: '4px 12px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <AlertTriangle style={{ width: '15px', height: '15px' }} />
+          Proof Verification Unavailable
+        </span>
+      );
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/pharmacy/received"
-            className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 rounded-lg transition"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
-                {batch.batchNumber}
-              </h1>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                batch.status === 'RELEASED' || batch.status === 'ACTIVE'
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
-                  : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-              }`}>
-                {batch.status || 'RELEASED'}
-              </span>
+    <div style={{ minHeight: 'calc(100vh - 72px)', background: '#f8fafc', padding: '32px 20px 80px' }}>
+      <div style={{ maxWidth: '1240px', margin: '0 auto' }}>
+        {/* Navigation Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <Link
+              to="/pharmacy/received"
+              className="btn btn-secondary"
+              style={{ padding: '8px 12px', display: 'flex', alignItems: 'center' }}
+              title="Back to Received Batches"
+            >
+              <ArrowLeft style={{ width: '18px', height: '18px' }} />
+            </Link>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: '1.85rem', fontWeight: '800', color: '#0f172a', margin: 0, fontFamily: 'monospace' }}>
+                  Batch #{batch.batchNumber}
+                </h1>
+                {getVerificationBadge()}
+              </div>
+              <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: '4px', margin: 0 }}>
+                {product.name || 'Pharmaceutical Formulary'} {product.genericName ? `(${product.genericName})` : ''}
+              </p>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              {batch.productName} {batch.genericName ? `(${batch.genericName})` : ''}
-            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => fetchBatchDetails()}
+              className="btn btn-secondary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+            >
+              <RefreshCw style={{ width: '15px', height: '15px' }} />
+              Sync Batch
+            </button>
+            <Link
+              to={`/verify/${encodeURIComponent(batch.batchNumber)}`}
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 16px', fontSize: '0.88rem', background: '#059669', borderColor: '#059669' }}
+            >
+              <ShieldCheck style={{ width: '16px', height: '16px' }} />
+              Verify Publicly
+            </Link>
           </div>
         </div>
 
-        <Link
-          to={`/verify/${batch.batchNumber}`}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition shadow-sm self-start sm:self-auto"
-        >
-          <ShieldCheck className="w-4 h-4" />
-          Verify 9-Point Authenticity
-        </Link>
-      </div>
+        {/* Grid Layout */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 360px', gap: '24px' }}>
+          {/* Left Column: Traceability & Timeline */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Cryptographic Proof Verification Card */}
+            <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileCheck style={{ width: '18px', height: '18px', color: '#059669' }} />
+                Cryptographic Blockchain Proof & Hash Integrity
+              </h3>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Metadata and QR */}
-        <div className="space-y-6">
-          {/* QR Card */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm text-center">
-            <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-4">
-              Batch Verification QR
-            </h3>
-            <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-inner inline-block">
-              <QRCodeSVG
-                value={JSON.stringify({
-                  batchNumber: batch.batchNumber,
-                  productName: batch.productName,
-                  verifyUrl: `${window.location.origin}/verify/${batch.batchNumber}`
-                })}
-                size={160}
-                level="H"
-              />
-            </div>
-            <p className="text-xs text-slate-400 mt-3 font-mono">
-              Scan with camera or pharmacy barcode reader
-            </p>
-          </div>
+              <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '16px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569' }}>Ledger Status:</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: '800', color: verification?.state === 'VERIFIED' ? '#047857' : '#d97706' }}>
+                    {verification?.state || 'UNAVAILABLE'}
+                  </span>
+                </div>
 
-          {/* Core Specifications */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm space-y-3">
-            <h3 className="font-bold text-slate-900 dark:text-white text-sm pb-2 border-b border-slate-100 dark:border-slate-700">
-              Product Specifications
-            </h3>
-            <div className="space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Dosage Form:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{batch.dosageForm || 'Tablets'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Strength:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{batch.strength || '500mg'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Manufacture Date:</span>
-                <span>{batch.manufacturingDate ? new Date(batch.manufacturingDate).toLocaleDateString() : 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Expiry Date:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Dispensary Stock:</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">{batch.quantity || 100} units</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Provenance and Supply Chain Timeline */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-            <h3 className="font-bold text-slate-900 dark:text-white text-base mb-6 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              Cryptographic Supply Chain Provenance
-            </h3>
-
-            {events.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 text-xs">
-                No recorded transfer events yet for this batch.
-              </div>
-            ) : (
-              <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
-                {events.map((evt, idx) => (
-                  <div key={idx} className="relative">
-                    <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-slate-800 border-2 border-emerald-600 flex items-center justify-center">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-600"></div>
-                    </div>
-
-                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 rounded text-xs font-bold uppercase">
-                          {evt.eventType}
-                        </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {new Date(evt.timestamp || evt.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-
-                      <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1">
-                        <p><strong>Actor:</strong> {evt.performedBy?.name || evt.performedBy?.organization || 'Authorized Node'}</p>
-                        <p><strong>Location:</strong> {evt.location?.facility || evt.location?.city || 'Verified Facility'}</p>
-                        {evt.notes && <p className="italic text-slate-500">"{evt.notes}"</p>}
-                      </div>
-
-                      {evt.dataHash && (
-                        <p className="text-[10px] font-mono text-slate-400 truncate mt-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded">
-                          Hash: {evt.dataHash}
-                        </p>
-                      )}
+                {batch.batchHash && (
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                      Canonical Batch Hash (SHA-256):
+                    </span>
+                    <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', background: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#0f172a', wordBreak: 'break-all' }}>
+                      {batch.batchHash}
                     </div>
                   </div>
-                ))}
+                )}
+
+                {batch.blockchainTxHash && (
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                      Blockchain Transaction Reference:
+                    </span>
+                    <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', background: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#059669', wordBreak: 'break-all' }}>
+                      {batch.blockchainTxHash}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', flexWrap: 'wrap', gap: '8px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1' }}>
+                  <span>Network: <strong>{batch.blockchainNetwork || 'Sepolia Ethereum Testnet'}</strong></span>
+                  {batch.blockNumber && <span>Block #: <strong>{batch.blockNumber}</strong></span>}
+                </div>
               </div>
-            )}
+
+              <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '12px', marginBottom: 0, lineHeight: '1.4' }}>
+                * Cryptographic verification confirms that digital batch specifications and minting credentials match the immutable ledger proof without requiring external wallet authorization.
+              </p>
+            </div>
+
+            {/* Supply Chain Timeline */}
+            <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock style={{ width: '18px', height: '18px', color: '#059669' }} />
+                Chronological Supply Chain Custody Journey
+              </h3>
+
+              {events.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: '#64748b', fontSize: '0.88rem' }}>
+                  No recorded supply chain transfer events found for this batch.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+                  {events.map((evt, idx) => {
+                    const evtDate = new Date(evt.eventDate || evt.createdAt).toLocaleString();
+                    const fromOrg = evt.fromOrganization?.name || 'Origin Facility';
+                    const toOrg = evt.toOrganization?.name || 'Destination Facility';
+
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          background: '#f8fafc',
+                          borderRadius: '12px',
+                          border: '1px solid #e2e8f0',
+                          padding: '16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                          <span style={{ background: '#ecfdf5', color: '#047857', fontSize: '0.72rem', fontWeight: '800', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                            {evt.eventType}
+                          </span>
+                          <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>
+                            {evtDate}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '0.88rem', color: '#0f172a', fontWeight: '700' }}>
+                          {evt.eventType === 'MANUFACTURED' ? (
+                            `Minted & Certified by ${fromOrg}`
+                          ) : (
+                            `Transferred from ${fromOrg} → ${toOrg}`
+                          )}
+                        </div>
+
+                        {evt.location && (
+                          <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Building2 style={{ width: '13px', height: '13px' }} />
+                            Facility: {evt.location}
+                          </div>
+                        )}
+
+                        {evt.notes && (
+                          <div style={{ fontSize: '0.8rem', color: '#475569', fontStyle: 'italic' }}>
+                            "{evt.notes}"
+                          </div>
+                        )}
+
+                        {evt.transactionHash && (
+                          <div style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: '#94a3b8', wordBreak: 'break-all', marginTop: '4px' }}>
+                            Event Hash: {evt.transactionHash}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Sidebar: Product Specs & QR Code */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Batch QR Code Card */}
+            <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', textAlign: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0f172a', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <QrCode style={{ width: '18px', height: '18px', color: '#059669' }} />
+                Public QR Verification Code
+              </h3>
+
+              <div style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'inline-block', marginBottom: '14px' }}>
+                <QRCodeSVG
+                  value={`${window.location.origin}/verify/${batch.batchNumber}`}
+                  size={160}
+                  level="H"
+                />
+              </div>
+
+              <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 14px 0', lineHeight: '1.4' }}>
+                Scan to open the public 9-point verification flow. No login required.
+              </p>
+
+              <Link
+                to={`/verify/${encodeURIComponent(batch.batchNumber)}`}
+                className="btn btn-secondary btn-sm"
+                style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#047857' }}
+              >
+                <ShieldCheck style={{ width: '14px', height: '14px' }} />
+                Open Public QR Page
+              </Link>
+            </div>
+
+            {/* Product Specifications Card */}
+            <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0f172a', margin: '0 0 14px 0', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                Product Specifications
+              </h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.82rem', color: '#475569' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Formulary Code:</span>
+                  <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>{product.productCode || 'PC-1001'}</strong>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Dosage Form:</span>
+                  <strong style={{ color: '#0f172a' }}>{product.dosageForm || 'Tablet'}</strong>
+                </div>
+
+                {product.strength && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Strength:</span>
+                    <strong style={{ color: '#0f172a' }}>{product.strength}</strong>
+                  </div>
+                )}
+
+                {product.category && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Category:</span>
+                    <strong style={{ color: '#0f172a' }}>{product.category}</strong>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Dispensary Quantity:</span>
+                  <strong style={{ color: batch.quantity < 20 ? '#d97706' : '#059669', fontSize: '0.9rem' }}>
+                    {batch.quantity} {batch.unit || 'units'}
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Manufacturing Date:</span>
+                  <span style={{ color: '#334155' }}>
+                    {batch.manufacturingDate ? new Date(batch.manufacturingDate).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Expiry Date:</span>
+                  <span style={{ fontWeight: '700', color: isExpired ? '#b91c1c' : isExpiringSoon ? '#b45309' : '#0f172a' }}>
+                    {batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Custody Information Card */}
+            <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0f172a', margin: '0 0 14px 0', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                Custody & Origin
+              </h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.82rem' }}>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Current Custodian:</span>
+                  <strong style={{ color: '#0f172a', fontSize: '0.88rem' }}>
+                    {currentCustodian?.name || batch.currentHolder?.name || 'Pharmacy Dispensary'}
+                  </strong>
+                </div>
+
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Authorized Manufacturer:</span>
+                  <strong style={{ color: '#0f172a', fontSize: '0.88rem' }}>
+                    {manufacturer.name || 'Certified Pharmaceutical Labs'}
+                  </strong>
+                  {manufacturer.contactEmail && (
+                    <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{manufacturer.contactEmail}</div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
