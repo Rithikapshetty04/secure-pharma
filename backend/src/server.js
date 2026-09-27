@@ -19,6 +19,7 @@ const auditRoutes = require("./routes/auditRoutes");
 const distributorRoutes = require("./routes/distributorRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const pharmacyRoutes = require("./routes/pharmacyRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use(
 // API Routes
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/licenses", licenseRoutes);
 app.use("/api/organizations", organizationRoutes);
 app.use("/api/products", productRoutes);

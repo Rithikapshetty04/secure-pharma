@@ -25,12 +25,15 @@ export const supplyChainApi = {
 };
 
 export const adminApi = {
+  getDashboard: () => api.getAdminDashboard(),
+  getUsers: (params) => api.getAdminUsers(params),
+  getUserById: (id) => api.getAdminUserById(id),
+  updateUserStatus: (id, status, reason) => api.updateAdminUserStatus(id, status, reason),
   getOrganizations: (params) => api.getOrganizations(params),
   updateOrganizationStatus: (id, status, reason) => api.updateOrganizationStatus(id, status, reason),
   getLicenses: (params) => api.getLicenses(params),
   approveLicense: (id, remarks) => api.approveLicense(id, remarks),
   rejectLicense: (id, reason) => api.rejectLicense(id, reason),
-  getUsers: (params) => api.getOrganizations(params),
 };
 
 export const auditApi = {

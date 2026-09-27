@@ -360,6 +360,41 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Admin
+  async getAdminDashboard() {
+    const res = await fetch(`${BASE_URL}/api/admin/dashboard`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminUsers(params = {}) {
+    const query = new URLSearchParams(params);
+    const res = await fetch(`${BASE_URL}/api/admin/users?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminUserById(id) {
+    const res = await fetch(`${BASE_URL}/api/admin/users/${encodeURIComponent(id)}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async updateAdminUserStatus(id, accountStatus, reason = '') {
+    const res = await fetch(`${BASE_URL}/api/admin/users/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ accountStatus, reason }),
+    });
+    return handleResponse(res);
+  },
+
   // Pharmacy
   async getPharmacyDashboard() {
     const res = await fetch(`${BASE_URL}/api/pharmacy/dashboard`, {
