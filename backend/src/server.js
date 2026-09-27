@@ -18,6 +18,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const auditRoutes = require("./routes/auditRoutes");
 const distributorRoutes = require("./routes/distributorRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const pharmacyRoutes = require("./routes/pharmacyRoutes");
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/batches", batchRoutes);
 app.use("/api/supply-chain", supplyChainRoutes);
 app.use("/api/distributor", distributorRoutes);
+app.use("/api/pharmacy", pharmacyRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/verify", verificationRoutes);
 app.use("/api/notifications", notificationRoutes);

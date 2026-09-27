@@ -360,6 +360,87 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Pharmacy
+  async getPharmacyDashboard() {
+    const res = await fetch(`${BASE_URL}/api/pharmacy/dashboard`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getPharmacyMedicines(params = {}) {
+    const query = new URLSearchParams(params);
+    const res = await fetch(`${BASE_URL}/api/pharmacy/medicines?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getPharmacyReceivedBatches(params = {}) {
+    const query = new URLSearchParams(params);
+    const res = await fetch(`${BASE_URL}/api/pharmacy/received?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  // Cart
+  async getPharmacyCart() {
+    const res = await fetch(`${BASE_URL}/api/pharmacy/cart`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async addPharmacyCartItem(data) {
+    const res = await fetch(`${BASE_URL}/api/pharmacy/cart/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async updatePharmacyCartItem(itemId, quantity) {
+    const res = await fetch(`${BASE_URL}/api/pharmacy/cart/items/${encodeURIComponent(itemId)}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ quantity }),
+    });
+    return handleResponse(res);
+  },
+
+  async removePharmacyCartItem(itemId) {
+    const res = await fetch(`${BASE_URL}/api/pharmacy/cart/items/${encodeURIComponent(itemId)}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async clearPharmacyCart() {
+    const res = await fetch(`${BASE_URL}/api/pharmacy/cart`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  // Orders
+  async getOrders(params = {}) {
+    const query = new URLSearchParams(params);
+    const res = await fetch(`${BASE_URL}/api/orders?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
   async createOrder(data) {
     const res = await fetch(`${BASE_URL}/api/orders`, {
       method: 'POST',
@@ -436,3 +517,6 @@ export const api = {
     }
   },
 };
+
+export default api;
+
