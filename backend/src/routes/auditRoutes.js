@@ -1,5 +1,5 @@
 const express = require("express");
-const { getAuditLogs } = require("../controllers/auditController");
+const { getAuditLogs, getAuditLogById } = require("../controllers/auditController");
 const {
   authenticateToken,
   authorizeRoles,
@@ -14,4 +14,12 @@ router.get(
   getAuditLogs
 );
 
+router.get(
+  "/:id",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getAuditLogById
+);
+
 module.exports = router;
+

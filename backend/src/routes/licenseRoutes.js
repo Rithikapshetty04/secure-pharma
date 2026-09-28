@@ -2,6 +2,7 @@ const express = require("express");
 const {
   getAllLicenses,
   getLicenseById,
+  getLicenseDocument,
   createLicense,
   updateLicense,
   approveLicense,
@@ -23,6 +24,8 @@ router.get(
 );
 
 router.get("/:id", authenticateToken, getLicenseById);
+
+router.get("/:id/document", authenticateToken, getLicenseDocument);
 
 router.post(
   "/",
@@ -65,4 +68,4 @@ router.patch(
   }
 );
 
-module.exports = router;
+module.exports = router;

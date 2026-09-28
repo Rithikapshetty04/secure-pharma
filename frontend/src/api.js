@@ -114,18 +114,42 @@ export const api = {
 
   // Licenses
   async getLicenses(params = {}) {
-    const query = typeof params === 'string' ? `status=${params}` : new URLSearchParams(params);
-    const res = await fetch(`${BASE_URL}/api/licenses?${query}`, {
+    let queryString = '';
+    if (typeof params === 'string') {
+      queryString = `status=${encodeURIComponent(params)}`;
+    } else if (params && typeof params === 'object') {
+      const cleanParams = {};
+      Object.keys(params).forEach((key) => {
+        if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+          cleanParams[key] = params[key];
+        }
+      });
+      queryString = new URLSearchParams(cleanParams).toString();
+    }
+    const res = await fetch(`${BASE_URL}/api/licenses${queryString ? `?${queryString}` : ''}`, {
       headers: { ...getAuthHeaders() },
     });
     return handleResponse(res);
   },
 
   async getLicenseById(id) {
-    const res = await fetch(`${BASE_URL}/api/licenses/${id}`, {
+    const res = await fetch(`${BASE_URL}/api/licenses/${encodeURIComponent(id)}`, {
       headers: { ...getAuthHeaders() },
     });
     return handleResponse(res);
+  },
+
+  async getLicenseDocumentBlob(id) {
+    const res = await fetch(`${BASE_URL}/api/licenses/${encodeURIComponent(id)}/document`, {
+      headers: { ...getAuthHeaders() },
+    });
+    if (!res.ok) {
+      const errorData = await handleResponse(res);
+      throw new Error(errorData.message || 'Failed to fetch protected document.');
+    }
+    const blob = await res.blob();
+    const contentType = res.headers.get('Content-Type') || 'application/pdf';
+    return { blobUrl: URL.createObjectURL(blob), contentType };
   },
 
   async createLicense(formData) {
@@ -138,7 +162,7 @@ export const api = {
   },
 
   async approveLicense(id, remarks) {
-    const res = await fetch(`${BASE_URL}/api/licenses/${id}/approve`, {
+    const res = await fetch(`${BASE_URL}/api/licenses/${encodeURIComponent(id)}/approve`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -150,7 +174,7 @@ export const api = {
   },
 
   async rejectLicense(id, reason) {
-    const res = await fetch(`${BASE_URL}/api/licenses/${id}/reject`, {
+    const res = await fetch(`${BASE_URL}/api/licenses/${encodeURIComponent(id)}/reject`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -395,6 +419,42 @@ export const api = {
     return handleResponse(res);
   },
 
+  async getAdminBatches(params = {}) {
+    let queryString = '';
+    if (params && typeof params === 'object') {
+      const cleanParams = {};
+      Object.keys(params).forEach((key) => {
+        if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+          cleanParams[key] = params[key];
+        }
+      });
+      queryString = new URLSearchParams(cleanParams).toString();
+    }
+    const res = await fetch(`${BASE_URL}/api/admin/batches${queryString ? `?${queryString}` : ''}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getAdminBatchById(id) {
+    const res = await fetch(`${BASE_URL}/api/admin/batches/${encodeURIComponent(id)}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async updateAdminBatchStatus(id, status, reason = '') {
+    const res = await fetch(`${BASE_URL}/api/admin/batches/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ status, reason }),
+    });
+    return handleResponse(res);
+  },
+
   // Pharmacy
   async getPharmacyDashboard() {
     const res = await fetch(`${BASE_URL}/api/pharmacy/dashboard`, {
@@ -560,8 +620,24 @@ export const api = {
 
   // Audit Logs
   async getAuditLogs(params = {}) {
-    const query = new URLSearchParams(params);
-    const res = await fetch(`${BASE_URL}/api/audit-logs?${query}`, {
+    let queryString = '';
+    if (params && typeof params === 'object') {
+      const cleanParams = {};
+      Object.keys(params).forEach((key) => {
+        if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+          cleanParams[key] = params[key];
+        }
+      });
+      queryString = new URLSearchParams(cleanParams).toString();
+    }
+    const res = await fetch(`${BASE_URL}/api/audit-logs${queryString ? `?${queryString}` : ''}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getAuditLogById(id) {
+    const res = await fetch(`${BASE_URL}/api/audit-logs/${encodeURIComponent(id)}`, {
       headers: { ...getAuthHeaders() },
     });
     return handleResponse(res);

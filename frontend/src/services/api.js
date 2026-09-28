@@ -32,12 +32,21 @@ export const adminApi = {
   getOrganizations: (params) => api.getOrganizations(params),
   updateOrganizationStatus: (id, status, reason) => api.updateOrganizationStatus(id, status, reason),
   getLicenses: (params) => api.getLicenses(params),
+  getPendingLicenses: () => api.getLicenses({ status: 'PENDING' }),
+  getLicenseById: (id) => api.getLicenseById(id),
+  getLicenseDocumentBlob: (id) => api.getLicenseDocumentBlob(id),
   approveLicense: (id, remarks) => api.approveLicense(id, remarks),
   rejectLicense: (id, reason) => api.rejectLicense(id, reason),
+  getBatches: (params) => api.getAdminBatches(params),
+  getBatchById: (id) => api.getAdminBatchById(id),
+  updateBatchStatus: (id, status, reason) => api.updateAdminBatchStatus(id, status, reason),
+  recallBatch: (id, reason) => api.updateAdminBatchStatus(id, 'RECALLED', reason),
+  flagBatch: (id, reason) => api.updateAdminBatchStatus(id, 'FLAGGED', reason),
 };
 
 export const auditApi = {
   getLogs: (params) => api.getAuditLogs(params),
+  getLogById: (id) => api.getAuditLogById(id),
 };
 
 export const productApi = {
@@ -51,6 +60,7 @@ export const productApi = {
 export const licenseApi = {
   getLicenses: (params) => api.getLicenses(params),
   getLicenseById: (id) => api.getLicenseById(id),
+  getLicenseDocumentBlob: (id) => api.getLicenseDocumentBlob(id),
   createLicense: (formData) => api.createLicense(formData),
   approveLicense: (id, remarks) => api.approveLicense(id, remarks),
   rejectLicense: (id, reason) => api.rejectLicense(id, reason),
