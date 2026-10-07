@@ -600,7 +600,7 @@ export default function DistributorHistoryPage() {
               </div>
             ) : (
               <>
-                <div style={{ overflowX: 'auto' }}>
+                <div className="table-responsive">
                   <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left', fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>

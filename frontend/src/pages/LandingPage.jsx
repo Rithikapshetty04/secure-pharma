@@ -233,7 +233,7 @@ export default function LandingPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '24px',
           }}
         >
@@ -311,7 +311,7 @@ export default function LandingPage() {
           border: '1px solid #e2e8f0',
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '48px', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '36px', alignItems: 'center' }}>
           <div>
             <span className="badge badge-info" style={{ marginBottom: '12px' }}>About Secure Pharma</span>
             <h2 style={{ fontSize: '2.2rem', color: '#0f172a', fontWeight: '800', letterSpacing: '-0.02em', lineHeight: 1.2, marginBottom: '20px' }}>

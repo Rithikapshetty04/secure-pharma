@@ -3,6 +3,7 @@ const {
   getPharmacyDashboard,
   getPharmacyMedicines,
   getPharmacyReceivedBatches,
+  receivePharmacyBatch,
   getPharmacyCart,
   addPharmacyCartItem,
   updatePharmacyCartItem,
@@ -33,6 +34,13 @@ router.get(
   authenticateToken,
   authorizeRoles("PHARMACY", "SUPER_ADMIN", "ADMIN"),
   getPharmacyReceivedBatches
+);
+
+router.post(
+  "/transfers/receive",
+  authenticateToken,
+  authorizeRoles("PHARMACY", "SUPER_ADMIN", "ADMIN"),
+  receivePharmacyBatch
 );
 
 router.get(

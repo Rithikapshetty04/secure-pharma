@@ -40,52 +40,47 @@ export default function Sidebar({ isOpen, onClose }) {
     <>
       {/* Mobile Backdrop */}
       {isOpen && (
-        <div
-          onClick={onClose}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.4)',
-            zIndex: 40,
-            backdropFilter: 'blur(4px)',
-          }}
-        />
+        <div className="sidebar-backdrop" onClick={onClose} />
       )}
 
-      <aside
-        style={{
-          width: '260px',
-          background: '#ffffff',
-          borderRight: '1px solid var(--border-subtle)',
-          display: 'flex',
-          flexDirection: 'column',
-          zIndex: 50,
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          overflowY: 'auto',
-          boxShadow: '1px 0 3px rgba(15, 23, 42, 0.02)',
-        }}
-      >
+      <aside className={`app-sidebar ${isOpen ? 'open' : ''}`}>
         {/* Entity Banner */}
         {user && (
           <div
             style={{
-              padding: '18px 20px',
+              padding: '16px 18px',
               borderBottom: '1px solid var(--border-subtle)',
               background: 'linear-gradient(180deg, #f0f7ff 0%, #ffffff 100%)',
             }}
           >
-            <div
-              style={{
-                fontSize: '0.7rem',
-                fontWeight: '700',
-                color: '#2563eb',
-                letterSpacing: '0.05em',
-                marginBottom: '4px',
-              }}
-            >
-              AUTHENTICATED ENTITY
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: '700',
+                  color: '#2563eb',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                AUTHENTICATED ENTITY
+              </div>
+              <button
+                onClick={onClose}
+                className="hide-desktop"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.1rem',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  lineHeight: 1,
+                }}
+                aria-label="Close sidebar"
+              >
+                ✕
+              </button>
             </div>
             <div
               style={{

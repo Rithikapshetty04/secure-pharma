@@ -66,9 +66,10 @@ function DashboardRedirect() {
 function AppLayout({ children, hideSidebar = false }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
   const isLanding = location.pathname === '/';
   const isAuthPage = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-verification'].some((path) => location.pathname.startsWith(path));
-  const shouldShowSidebar = !isLanding && !isAuthPage && !hideSidebar;
+  const shouldShowSidebar = !isLanding && !isAuthPage && !hideSidebar && !!user;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>

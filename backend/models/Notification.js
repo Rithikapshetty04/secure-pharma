@@ -35,6 +35,8 @@ const notificationSchema = new mongoose.Schema(
         "SUSPICIOUS_PRODUCT",
         "VERIFICATION_COMPLETED",
         "ACCOUNT_STATUS_CHANGED",
+        "ORDER_CREATED",
+        "ORDER_STATUS_CHANGED",
         "GENERAL",
       ],
       default: "GENERAL",

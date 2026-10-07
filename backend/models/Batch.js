@@ -63,6 +63,10 @@ const batchSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    currentHolder: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+    },
     qrCodeDataUrl: {
       type: String,
     },
@@ -79,7 +83,7 @@ const batchSchema = new mongoose.Schema(
     },
     blockchainNetwork: {
       type: String,
-      default: "Sepolia Ethereum Testnet (Simulated Proof)",
+      default: null,
     },
     recallReason: {
       type: String,
@@ -97,6 +101,7 @@ const batchSchema = new mongoose.Schema(
 
 batchSchema.index({ product: 1 });
 batchSchema.index({ manufacturer: 1 });
+batchSchema.index({ currentHolder: 1 });
 batchSchema.index({ status: 1 });
 batchSchema.index({ expiryDate: 1 });
 

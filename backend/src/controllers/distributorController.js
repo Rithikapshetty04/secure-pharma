@@ -555,21 +555,37 @@ const receiveDistributorBatch = async (req, res, next) => {
       });
     }
 
-    const lastEvent = await SupplyChainEvent.findOne({ batch: batch._id }).sort({ eventDate: -1 });
+    // Check batch status - receiving is only valid when batch is in transit
+    if (batch.status === "RECEIVED") {
+      const currentHolderStr = (batch.currentHolder?._id || batch.currentHolder || "").toString();
+      if (currentHolderStr === distributorOrgId.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: "Batch has already been received and confirmed by your organization.",
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: "Batch has already been received and is currently in possession of another organization.",
+      });
+    }
+
+    if (batch.status !== "IN_TRANSIT") {
+      return res.status(400).json({
+        success: false,
+        message: `Batch cannot be received in its current status: ${batch.status}. It must be dispatched and in transit first.`,
+      });
+    }
+
+    const lastEvent = await SupplyChainEvent.findOne({
+      batch: batch._id,
+      eventType: { $in: ["DISPATCHED", "SHIPPED", "TRANSFERRED"] },
+    }).sort({ eventDate: -1, _id: -1 });
+
     if (!lastEvent) {
       return res.status(400).json({
         success: false,
         message: "No prior dispatch record found for this batch.",
-      });
-    }
-
-    if (
-      lastEvent.eventType === "RECEIVED" &&
-      lastEvent.toOrganization?.toString() === distributorOrgId.toString()
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Batch has already been received and confirmed by your organization.",
       });
     }
 
@@ -582,6 +598,7 @@ const receiveDistributorBatch = async (req, res, next) => {
     }
 
     batch.status = "RECEIVED";
+    batch.currentHolder = distributorOrgId;
     await batch.save();
 
     const BlockchainService = require("../services/blockchainService");
@@ -626,7 +643,7 @@ const receiveDistributorBatch = async (req, res, next) => {
       uniqueEventId,
       transactionHash: blockchainRecord?.transactionHash || txHash,
       blockNumber: blockchainRecord?.blockNumber,
-      blockchainNetwork: blockchainRecord?.network || "Sepolia Ethereum Testnet (Simulated Proof)",
+      blockchainNetwork: blockchainRecord?.network || null,
       eventDate: new Date(),
     });
 
@@ -817,9 +834,12 @@ const dispatchDistributorBatch = async (req, res, next) => {
       uniqueEventId,
       transactionHash: blockchainRecord?.transactionHash || txHash,
       blockNumber: blockchainRecord?.blockNumber,
-      blockchainNetwork: blockchainRecord?.network || "Sepolia Ethereum Testnet (Simulated Proof)",
+      blockchainNetwork: blockchainRecord?.network || null,
       eventDate: new Date(),
     });
+
+    batch.status = "IN_TRANSIT";
+    await batch.save();
 
     const populatedEvent = await SupplyChainEvent.findById(event._id)
       .populate("fromOrganization", "name type address")

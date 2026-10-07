@@ -142,12 +142,77 @@ class VerificationService {
       });
     }
 
+    let blockchainVerification = {
+      isConfigured: false,
+      status: "NOT_CONFIGURED",
+      onChain: false,
+      message: "Blockchain verification is not configured in server environment.",
+    };
+
+    try {
+      const providerStatus = await BlockchainService.getProviderStatus();
+      if (providerStatus.status === "CONNECTED") {
+        const onChain = await BlockchainService.getBatchFromChain(batch.batchNumber);
+        if (onChain && onChain.exists) {
+          blockchainVerification = {
+            isConfigured: true,
+            status: "VERIFIED",
+            onChain: true,
+            network: providerStatus.network,
+            contractAddress: BlockchainService.getContractInfo().contractAddress,
+            txHash: batch.blockchainTxHash || null,
+            blockNumber: batch.blockNumber || null,
+            onChainBatchNumber: onChain.batchNumber,
+            onChainProductCode: onChain.productCode,
+            onChainManufacturer: onChain.manufacturer,
+            onChainManufacturerOrg: onChain.manufacturerOrg,
+            onChainTimestamp: onChain.creationTimestamp,
+            onChainEventsCount: onChain.events?.length || 0,
+            message: "Batch record is authentically verified on the immutable blockchain ledger.",
+          };
+        } else if (onChain && onChain.onChain && !onChain.exists) {
+          blockchainVerification = {
+            isConfigured: true,
+            status: "NOT_ON_CHAIN",
+            onChain: false,
+            network: providerStatus.network,
+            contractAddress: BlockchainService.getContractInfo().contractAddress,
+            message: "Batch record was found in the database, but has not been anchored on the smart contract.",
+          };
+        } else {
+          blockchainVerification = {
+            isConfigured: true,
+            status: "UNAVAILABLE",
+            onChain: false,
+            network: providerStatus.network,
+            message: onChain.error || "Unable to query smart contract on-chain state.",
+          };
+        }
+      } else if (providerStatus.status === "UNAVAILABLE") {
+        blockchainVerification = {
+          isConfigured: true,
+          status: "UNAVAILABLE",
+          onChain: false,
+          network: providerStatus.network,
+          message: "Blockchain network is configured but currently unreachable.",
+        };
+      }
+    } catch (err) {
+      blockchainVerification = {
+        isConfigured: false,
+        status: "ERROR",
+        onChain: false,
+        message: err.message,
+      };
+    }
+
     return {
       success: true,
       verified: finalStatus === "AUTHENTIC",
       status: finalStatus,
       message,
       checks,
+      blockchainVerification,
       batch: {
         id: batch._id,
         batchNumber: batch.batchNumber,
@@ -159,6 +224,9 @@ class VerificationService {
         status: batch.status,
         storageRequirements: batch.storageRequirements,
         batchHash: batch.batchHash,
+        blockchainTxHash: batch.blockchainTxHash || null,
+        blockNumber: batch.blockNumber || null,
+        blockchainNetwork: batch.blockchainNetwork || null,
       },
       product: product
         ? {
@@ -198,6 +266,8 @@ class VerificationService {
         notes: e.notes,
         quantity: e.quantity,
         transactionHash: e.transactionHash,
+        blockNumber: e.blockNumber,
+        blockchainNetwork: e.blockchainNetwork,
       })),
       cryptographicRootHash: events.length > 0 ? events[events.length - 1].transactionHash : batch.batchHash,
     };

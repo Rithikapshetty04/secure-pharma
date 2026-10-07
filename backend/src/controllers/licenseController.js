@@ -58,8 +58,9 @@ const getAllLicenses = async (req, res, next) => {
     }
 
     // 4. Search Filter
-    if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), "i");
+    if (search && typeof search === "string" && search.trim()) {
+      const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapedSearch, "i");
 
       const matchingOrgs = await Organization.find({
         $or: [
@@ -162,6 +163,19 @@ const getLicenseById = async (req, res, next) => {
       });
     }
 
+    // Role & Ownership Access Control (IDOR Prevention)
+    const isAdmin = ["SUPER_ADMIN", "ADMIN", "REGULATOR"].includes(req.user.role);
+    const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+    const licenseOrgId = (license.organization?._id || license.organization || "").toString();
+    const isOwner = Boolean(userOrgId && licenseOrgId && userOrgId === licenseOrgId);
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: "Access forbidden: You do not have authorization to view this organization's license.",
+      });
+    }
+
     const verifications = await Verification.find({ license: license._id })
       .populate("verifiedBy", "name email role")
       .sort({ createdAt: -1 })
@@ -187,7 +201,20 @@ const getLicenseById = async (req, res, next) => {
 const getLicenseDocument = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const license = await License.findById(id);
+    let license = null;
+
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      license = await License.findById(id);
+    }
+    if (!license) {
+      license = await License.findOne({
+        $or: [
+          { licenseNumber: id.trim().toUpperCase() },
+          { documentPath: id },
+          { documentPath: `uploads/licenses/${path.basename(id)}` },
+        ],
+      });
+    }
 
     if (!license || !license.documentPath) {
       return res.status(404).json({
@@ -198,14 +225,9 @@ const getLicenseDocument = async (req, res, next) => {
 
     // Access control: Admin or user belonging to license organization
     const isAdmin = ["SUPER_ADMIN", "ADMIN", "REGULATOR"].includes(req.user.role);
-    const isOwner =
-      req.user.organization &&
-      license.organization &&
-      req.user.organization._id
-        ? req.user.organization._id.toString() === license.organization.toString()
-        : req.user.organization
-        ? req.user.organization.toString() === license.organization.toString()
-        : false;
+    const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+    const licenseOrgId = (license.organization?._id || license.organization || "").toString();
+    const isOwner = Boolean(userOrgId && licenseOrgId && userOrgId === licenseOrgId);
 
     if (!isAdmin && !isOwner) {
       return res.status(403).json({
@@ -265,7 +287,8 @@ const createLicense = async (req, res, next) => {
       });
     }
 
-    const orgId = organizationId || req.user.organization?._id || req.user.organization;
+    const isAdmin = ["SUPER_ADMIN", "ADMIN", "REGULATOR"].includes(req.user.role);
+    const orgId = isAdmin && organizationId ? organizationId : (req.user.organization?._id || req.user.organization);
     const docPath = req.file ? req.file.path : null;
     const documentHash = docPath ? BlockchainService.generateDocumentHash(docPath) : null;
 
@@ -320,6 +343,19 @@ const updateLicense = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: "License not found",
+      });
+    }
+
+    // IDOR check: Only owner organization or admin can update license
+    const isAdmin = ["SUPER_ADMIN", "ADMIN", "REGULATOR"].includes(req.user.role);
+    const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+    const licenseOrgId = (license.organization?._id || license.organization || "").toString();
+    const isOwner = Boolean(userOrgId && licenseOrgId && userOrgId === licenseOrgId);
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: "Access forbidden: You do not have authorization to update this license.",
       });
     }
 

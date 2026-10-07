@@ -39,7 +39,7 @@ const registerUser = async (userData, req = null) => {
   }
 
   const requestedOrgType = (organizationType || "MANUFACTURER").toUpperCase().trim();
-  const validOrgTypes = ["MANUFACTURER", "DISTRIBUTOR", "PHARMACY", "REGULATOR"];
+  const validOrgTypes = ["MANUFACTURER", "DISTRIBUTOR", "PHARMACY"];
   const normalizedOrgType = validOrgTypes.includes(requestedOrgType) ? requestedOrgType : "MANUFACTURER";
 
   const requestedLicenseType = (licenseType || "MANUFACTURING").toUpperCase().trim();
@@ -127,7 +127,9 @@ const registerUser = async (userData, req = null) => {
 const authenticateUser = async ({ email, password }, req = null) => {
   const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await User.findOne({ email: normalizedEmail }).populate("organization");
+  const user = await User.findOne({ email: normalizedEmail })
+    .select("+password")
+    .populate("organization");
 
   if (!user) {
     await logAuditAction({
@@ -262,8 +264,7 @@ const requestPasswordReset = async (email, req = null) => {
 
   return {
     success: true,
-    message: "Password reset token generated.",
-    resetToken, // Returned in dev/API mode
+    message: "If an account exists with this email address, password reset instructions have been issued.",
   };
 };
 
@@ -273,7 +274,7 @@ const resetPasswordWithToken = async (token, newPassword, req = null) => {
   const user = await User.findOne({
     resetPasswordToken: hashedToken,
     resetPasswordExpires: { $gt: Date.now() },
-  });
+  }).select("+resetPasswordToken +resetPasswordExpires");
 
   if (!user) {
     const error = new Error("Password reset token is invalid or has expired.");

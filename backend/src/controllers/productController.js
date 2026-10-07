@@ -17,12 +17,13 @@ const getAllProducts = async (req, res, next) => {
     if (status) {
       filter.status = status.toUpperCase();
     }
-    if (search) {
+    if (search && typeof search === "string" && search.trim()) {
+      const cleanSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { genericName: { $regex: search, $options: "i" } },
-        { brandName: { $regex: search, $options: "i" } },
-        { productCode: { $regex: search, $options: "i" } },
+        { name: { $regex: cleanSearch, $options: "i" } },
+        { genericName: { $regex: cleanSearch, $options: "i" } },
+        { brandName: { $regex: cleanSearch, $options: "i" } },
+        { productCode: { $regex: cleanSearch, $options: "i" } },
       ];
     }
 
@@ -100,7 +101,9 @@ const createProduct = async (req, res, next) => {
       });
     }
 
-    const mfgId = manufacturerId || (req.user.organization ? req.user.organization._id || req.user.organization : null);
+    const isAdmin = ["SUPER_ADMIN", "ADMIN", "REGULATOR"].includes(req.user.role);
+    const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+    const mfgId = isAdmin && manufacturerId ? manufacturerId : userOrgId;
 
     if (!mfgId) {
       return res.status(400).json({
@@ -242,6 +245,19 @@ const deleteProduct = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: "Product not found",
+      });
+    }
+
+    // Role & Ownership check (IDOR Prevention)
+    const isAdmin = ["SUPER_ADMIN", "ADMIN", "REGULATOR"].includes(req.user.role);
+    const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+    const productMfgId = (product.manufacturer?._id || product.manufacturer || "").toString();
+    const isOwner = Boolean(userOrgId && productMfgId && userOrgId === productMfgId);
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Access forbidden: You do not have authorization to deactivate this product record.",
       });
     }
 

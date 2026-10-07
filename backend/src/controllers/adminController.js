@@ -6,6 +6,7 @@ const SupplyChainEvent = require("../../models/SupplyChainEvent");
 const Order = require("../../models/Order");
 const AuditLog = require("../../models/AuditLog");
 const { logAuditAction } = require("../utils/auditLogger");
+const BlockchainService = require("../services/blockchainService");
 
 /**
  * GET /api/admin/dashboard
@@ -121,6 +122,9 @@ const getAdminDashboard = async (req, res) => {
         .lean()
     ]);
 
+    const providerStatus = await BlockchainService.getProviderStatus();
+    const contractInfo = BlockchainService.getContractInfo();
+
     res.json({
       success: true,
       data: {
@@ -159,9 +163,13 @@ const getAdminDashboard = async (req, res) => {
           delivered: deliveredOrders
         },
         blockchain: {
-          status: "CONNECTED",
-          network: process.env.BLOCKCHAIN_NETWORK || "Sepolia Ethereum Testnet (Simulated Proof)",
-          contractAddress: process.env.CONTRACT_ADDRESS || null,
+          status: providerStatus.status,
+          network: providerStatus.network,
+          rpcUrl: providerStatus.rpcUrl,
+          latestBlock: providerStatus.latestBlock,
+          contractAddress: contractInfo.contractAddress,
+          isContractConfigured: contractInfo.isConfigured,
+          message: providerStatus.message,
           totalOnChainBatches: blockchainBatchesCount,
           totalOnChainEvents: blockchainEventsCount,
           latestTx: latestBlockchainTx

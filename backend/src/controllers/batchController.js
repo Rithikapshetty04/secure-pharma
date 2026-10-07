@@ -31,15 +31,16 @@ const getAllBatches = async (req, res, next) => {
       filter.manufacturer = manufacturerId;
     }
 
-    if (status) {
+    if (status && typeof status === "string") {
       filter.status = status.toUpperCase();
     }
-    if (productId) {
+    if (productId && typeof productId === "string" && /^[0-9a-fA-F]{24}$/.test(productId)) {
       filter.product = productId;
     }
 
-    if (search && search.trim()) {
-      const searchRegex = { $regex: search.trim(), $options: "i" };
+    if (search && typeof search === "string" && search.trim()) {
+      const cleanSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = { $regex: cleanSearch, $options: "i" };
 
       // Search matching products by name or code
       const matchingProducts = await Product.find({
@@ -195,7 +196,7 @@ const getBatchById = async (req, res, next) => {
         state: verificationState,
         calculatedHash,
         storedHash: batch.batchHash || batch.blockchainTxHash || null,
-        network: batch.blockchainNetwork || "Sepolia Ethereum Testnet (Simulated Proof)",
+        network: batch.blockchainNetwork || null,
         blockNumber: batch.blockNumber || null,
       },
     });
@@ -224,7 +225,23 @@ const createBatch = async (req, res, next) => {
       });
     }
 
-    const normalizedBatchNumber = batchNumber.trim().toUpperCase();
+    const numQuantity = Number(quantity);
+    if (isNaN(numQuantity) || numQuantity <= 0 || !Number.isInteger(numQuantity)) {
+      return res.status(400).json({
+        success: false,
+        message: "Batch quantity must be a positive integer.",
+      });
+    }
+
+    const expDate = new Date(expiryDate);
+    if (isNaN(expDate.getTime()) || expDate <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Expiry date must be a valid future date.",
+      });
+    }
+
+    const normalizedBatchNumber = String(batchNumber).trim().toUpperCase();
     const existing = await Batch.findOne({ batchNumber: normalizedBatchNumber });
     if (existing) {
       return res.status(409).json({
@@ -257,7 +274,6 @@ const createBatch = async (req, res, next) => {
 
     // Cryptographic Batch Hash
     const mfgDate = manufacturingDate ? new Date(manufacturingDate) : new Date();
-    const expDate = new Date(expiryDate);
     const batchHash = BlockchainService.generateBatchHash({
       batchNumber: normalizedBatchNumber,
       productCode: product.productCode,
@@ -275,12 +291,16 @@ const createBatch = async (req, res, next) => {
       expiryDate: expDate,
       quantity: Number(quantity),
       manufacturerId: mfgOrgId,
+      manufacturerOrgName: req.user.organization?.name || "Manufacturer",
+      location: location || req.user.organization?.address || "Primary Manufacturing Cleanroom",
+      batchHash,
     });
 
     const batch = await Batch.create({
       batchNumber: normalizedBatchNumber,
       product: product._id,
       manufacturer: mfgOrgId,
+      currentHolder: mfgOrgId,
       manufacturingDate: mfgDate,
       expiryDate: expDate,
       quantity: Number(quantity),
@@ -289,9 +309,9 @@ const createBatch = async (req, res, next) => {
       status: "MANUFACTURED",
       qrIdentifier,
       batchHash,
-      blockchainTxHash: blockchainRecord?.transactionHash || batchHash,
-      blockNumber: blockchainRecord?.blockNumber,
-      blockchainNetwork: blockchainRecord?.network || "Sepolia Ethereum Testnet (Simulated Proof)",
+      blockchainTxHash: blockchainRecord?.transactionHash || null,
+      blockNumber: blockchainRecord?.blockNumber || null,
+      blockchainNetwork: blockchainRecord?.network || null,
     });
 
     // Create Initial MANUFACTURED SupplyChainEvent
@@ -315,7 +335,9 @@ const createBatch = async (req, res, next) => {
       quantity: batch.quantity,
       notes: "Production batch manufactured and cryptographically sealed on Secure Pharma ledger.",
       uniqueEventId: `EVT-${crypto.randomUUID()}`,
-      transactionHash: initialTxHash,
+      transactionHash: blockchainRecord?.transactionHash || initialTxHash,
+      blockNumber: blockchainRecord?.blockNumber || null,
+      blockchainNetwork: blockchainRecord?.network || null,
       eventDate: mfgDate,
     });
 
@@ -369,9 +391,35 @@ const updateBatch = async (req, res, next) => {
       });
     }
 
-    if (storageRequirements !== undefined) batch.storageRequirements = storageRequirements.trim();
-    if (quantity !== undefined) batch.quantity = Number(quantity);
-    if (unit !== undefined) batch.unit = unit.trim();
+    // Role & Ownership Access Control (IDOR Prevention)
+    const isAdmin = ["SUPER_ADMIN", "ADMIN", "REGULATOR"].includes(req.user.role);
+    const mfgOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+    const batchMfgId = (batch.manufacturer?._id || batch.manufacturer || "").toString();
+
+    if (!isAdmin && (!mfgOrgId || mfgOrgId !== batchMfgId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Access forbidden: You do not have authorization to modify this batch.",
+      });
+    }
+
+    // Custody Lock: Batches transferred downstream cannot have specifications altered
+    if (["IN_TRANSIT", "RECEIVED", "DISTRIBUTED", "SOLD", "RECALLED"].includes(batch.status) && !isAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: `Batch cannot be modified because it is currently in '${batch.status}' status in the supply chain.`,
+      });
+    }
+
+    if (storageRequirements !== undefined) batch.storageRequirements = String(storageRequirements).trim();
+    if (quantity !== undefined) {
+      const parsedQty = Number(quantity);
+      if (isNaN(parsedQty) || parsedQty <= 0) {
+        return res.status(400).json({ success: false, message: "Quantity must be a positive number." });
+      }
+      batch.quantity = parsedQty;
+    }
+    if (unit !== undefined) batch.unit = String(unit).trim();
 
     await batch.save();
 
@@ -412,7 +460,9 @@ const updateBatchStatus = async (req, res, next) => {
       "FLAGGED",
     ];
 
-    if (!validStatuses.includes(status)) {
+    const normalizedStatus = String(status).toUpperCase().trim();
+
+    if (!validStatuses.includes(normalizedStatus)) {
       return res.status(400).json({
         success: false,
         message: `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
@@ -427,11 +477,38 @@ const updateBatchStatus = async (req, res, next) => {
       });
     }
 
-    batch.status = status;
-    if (status === "RECALLED") {
-      batch.recallReason = reason || "Regulatory recall order";
-    } else if (status === "FLAGGED") {
-      batch.flagReason = reason || "Suspicious supply chain anomaly detected";
+    const isAdmin = ["SUPER_ADMIN", "ADMIN", "REGULATOR"].includes(req.user.role);
+    const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+    const batchMfgId = (batch.manufacturer?._id || batch.manufacturer || "").toString();
+    const currentHolderId = (batch.currentHolder?._id || batch.currentHolder || "").toString();
+
+    // Authority rules:
+    // Only Admin / Regulator or the creator Manufacturer can RECALL or FLAG a batch
+    if (["RECALLED", "FLAGGED"].includes(normalizedStatus) && !isAdmin) {
+      if (req.user.role !== "MANUFACTURER" || userOrgId !== batchMfgId) {
+        return res.status(403).json({
+          success: false,
+          message: "Access forbidden: Only authorized regulators or the manufacturing organization can recall or flag batches.",
+        });
+      }
+    }
+
+    // Only current custodian, creator manufacturer, or admin can update status
+    const isCurrentHolder = Boolean(userOrgId && currentHolderId && userOrgId === currentHolderId);
+    const isMfgOwner = Boolean(userOrgId && batchMfgId && userOrgId === batchMfgId);
+
+    if (!isAdmin && !isCurrentHolder && !isMfgOwner) {
+      return res.status(403).json({
+        success: false,
+        message: "Access forbidden: You do not currently hold custody or ownership of this batch.",
+      });
+    }
+
+    batch.status = normalizedStatus;
+    if (normalizedStatus === "RECALLED") {
+      batch.recallReason = reason ? String(reason).trim() : "Regulatory recall order";
+    } else if (normalizedStatus === "FLAGGED") {
+      batch.flagReason = reason ? String(reason).trim() : "Suspicious supply chain anomaly detected";
     }
     await batch.save();
 

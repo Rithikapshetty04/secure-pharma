@@ -869,10 +869,192 @@ const getPharmacyHistory = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/pharmacy/transfers/receive
+ * Confirms receipt and possession of incoming pharmaceutical shipment by pharmacy dispensary.
+ */
+const receivePharmacyBatch = async (req, res, next) => {
+  try {
+    const pharmacyOrgId = req.user.organization?._id || req.user.organization;
+    if (!pharmacyOrgId) {
+      return res.status(403).json({
+        success: false,
+        message: "Access forbidden: User is not associated with a registered Pharmacy organization.",
+      });
+    }
+
+    const { batchId, location, notes } = req.body;
+    if (!batchId) {
+      return res.status(400).json({
+        success: false,
+        message: "batchId is required to record batch receipt.",
+      });
+    }
+
+    const batch = await Batch.findById(batchId).populate("product");
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: "Batch not found in supply chain registry.",
+      });
+    }
+
+    if (batch.status === "RECALLED") {
+      return res.status(400).json({
+        success: false,
+        message: "Recalled batches cannot be received or dispensed.",
+      });
+    }
+
+    if (new Date(batch.expiryDate) <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Expired batches cannot be received into active dispensary stock.",
+      });
+    }
+
+    // Check batch status - receiving is only valid when batch is in transit
+    if (batch.status === "RECEIVED") {
+      const currentHolderStr = (batch.currentHolder?._id || batch.currentHolder || "").toString();
+      if (currentHolderStr === pharmacyOrgId.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: "Batch has already been received and confirmed by your dispensary.",
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: "Batch has already been received and is currently held by another organization.",
+      });
+    }
+
+    if (batch.status !== "IN_TRANSIT") {
+      return res.status(400).json({
+        success: false,
+        message: `Batch cannot be received in its current status: ${batch.status}. It must be dispatched and in transit first.`,
+      });
+    }
+
+    const lastDispatchEvent = await SupplyChainEvent.findOne({
+      batch: batch._id,
+      eventType: { $in: ["DISPATCHED", "SHIPPED", "TRANSFERRED"] },
+    }).sort({ eventDate: -1, _id: -1 });
+
+    if (!lastDispatchEvent) {
+      return res.status(400).json({
+        success: false,
+        message: "No prior dispatch record found for this batch.",
+      });
+    }
+
+    const lastEvent = lastDispatchEvent;
+
+    // IDOR / Custody check: must be the intended recipient
+    const targetRecipient = (lastDispatchEvent.toOrganization?._id || lastDispatchEvent.toOrganization)?.toString();
+    if (targetRecipient !== pharmacyOrgId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Authorization error: Your pharmacy is not the intended recipient of this transfer.",
+      });
+    }
+
+    batch.status = "RECEIVED";
+    batch.currentHolder = pharmacyOrgId;
+    await batch.save();
+
+    const BlockchainService = require("../services/blockchainService");
+    const { createNotification } = require("../services/notificationService");
+    const { logAuditAction } = require("../utils/auditLogger");
+
+    const previousHash = lastEvent.transactionHash || batch.batchHash || "";
+    const eventTime = Date.now();
+
+    const txHash = BlockchainService.generateSupplyChainEventHash({
+      batchNumber: batch.batchNumber,
+      eventType: "RECEIVED",
+      fromOrgId: lastEvent.fromOrganization,
+      toOrgId: pharmacyOrgId,
+      location: location || req.user.organization?.address || "Pharmacy Dispensary Receiving Area",
+      timestamp: eventTime,
+      previousHash,
+    });
+
+    const blockchainRecord = await BlockchainService.recordEventOnChain({
+      batchNumber: batch.batchNumber,
+      eventType: "RECEIVED",
+      fromOrgId: lastEvent.fromOrganization,
+      toOrgId: pharmacyOrgId,
+      location: location || req.user.organization?.address || "Pharmacy Dispensary Receiving Area",
+      timestamp: eventTime,
+      previousHash,
+    });
+
+    const crypto = require("crypto");
+    const uniqueEventId = `EVT-${crypto.randomUUID()}`;
+
+    const event = await SupplyChainEvent.create({
+      batch: batch._id,
+      eventType: "RECEIVED",
+      fromOrganization: lastEvent.fromOrganization,
+      toOrganization: pharmacyOrgId,
+      location: location || req.user.organization?.address || "Pharmacy Dispensary Receiving Area",
+      user: req.user._id,
+      quantity: batch.quantity,
+      notes: notes ? notes.trim() : `Shipment verified and received into licensed dispensary by ${req.user.organization?.name || "Pharmacy"}.`,
+      uniqueEventId,
+      transactionHash: blockchainRecord?.transactionHash || txHash,
+      blockNumber: blockchainRecord?.blockNumber,
+      blockchainNetwork: blockchainRecord?.network || null,
+      eventDate: new Date(),
+    });
+
+    const populatedEvent = await SupplyChainEvent.findById(event._id)
+      .populate("fromOrganization", "name type address")
+      .populate("toOrganization", "name type address")
+      .populate("user", "name role");
+
+    if (lastEvent.fromOrganization) {
+      await createNotification({
+        recipientOrg: lastEvent.fromOrganization,
+        type: "BATCH_RECEIVED",
+        title: `Shipment Received by Pharmacy: Batch #${batch.batchNumber}`,
+        message: `${req.user.organization?.name || "Pharmacy"} confirmed receipt of Batch #${batch.batchNumber} (${batch.product?.name}).`,
+        relatedEntity: "Batch",
+        relatedEntityId: batch._id,
+      });
+    }
+
+    await logAuditAction({
+      userId: req.user._id,
+      organization: pharmacyOrgId,
+      action: "PHARMACY_BATCH_RECEIVED",
+      entityType: "SupplyChainEvent",
+      entityId: event._id,
+      details: {
+        batchNumber: batch.batchNumber,
+        uniqueEventId,
+        transactionHash: blockchainRecord?.transactionHash || txHash,
+      },
+      req,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Batch #${batch.batchNumber} successfully received into dispensary stock and cryptographically logged.`,
+      event: populatedEvent,
+      batchStatus: batch.status,
+      blockchainRecord,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getPharmacyDashboard,
   getPharmacyMedicines,
   getPharmacyReceivedBatches,
+  receivePharmacyBatch,
   getPharmacyCart,
   addPharmacyCartItem,
   updatePharmacyCartItem,

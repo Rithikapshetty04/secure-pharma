@@ -30,28 +30,13 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
   };
 
   return (
-    <header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 30,
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(16px)',
-        borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
-        padding: '0 32px',
-        height: '72px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 1px 4px rgba(15, 23, 42, 0.03)',
-      }}
-    >
+    <header className="app-header">
       {/* Left: Mobile Toggle & Brand Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="btn btn-outline btn-sm"
+            className="btn btn-outline btn-sm hide-desktop"
             style={{ padding: '6px 10px', color: 'var(--text-heading)' }}
             aria-label="Toggle navigation"
           >
@@ -152,9 +137,9 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
             <Link
               to={user ? (user.role === 'MANUFACTURER' ? '/manufacturer/dashboard' : user.role === 'DISTRIBUTOR' ? '/distributor/dashboard' : user.role === 'PHARMACY' ? '/pharmacy/dashboard' : '/admin/dashboard') : '/login'}
               className="btn btn-pill btn-pill-outline btn-sm"
-              style={{ padding: '8px 18px', fontSize: '0.875rem' }}
+              style={{ padding: '8px 14px', fontSize: '0.85rem' }}
             >
-              📊 Dashboard
+              <span>📊</span> <span className="nav-dash-text">Dashboard</span>
             </Link>
 
             {/* Notification Bell */}
@@ -201,7 +186,7 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
                     position: 'absolute',
                     top: '48px',
                     right: 0,
-                    width: '340px',
+                    width: 'min(340px, calc(100vw - 32px))',
                     maxHeight: '400px',
                     overflowY: 'auto',
                     padding: '16px',
@@ -285,7 +270,7 @@ export default function Navbar({ onToggleSidebar, isLanding = false }) {
                     position: 'absolute',
                     top: '48px',
                     right: 0,
-                    width: '220px',
+                    width: 'min(220px, calc(100vw - 32px))',
                     padding: '12px',
                     zIndex: 100,
                     background: '#ffffff',

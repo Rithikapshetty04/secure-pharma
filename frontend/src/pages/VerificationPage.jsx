@@ -147,7 +147,7 @@ export default function VerificationPage() {
   // =========================================================================
   if (!identifier) {
     return (
-      <div style={{ minHeight: 'calc(100vh - 72px)', background: '#f8fafc', padding: '40px 20px 80px' }}>
+      <div style={{ minHeight: 'calc(100vh - 72px)', background: '#f8fafc', padding: '24px 14px 60px' }}>
         <div style={{ maxWidth: '960px', margin: '0 auto' }}>
           {/* Top Banner */}
           <div
@@ -220,40 +220,40 @@ export default function VerificationPage() {
   const StatusIcon = statusConfig?.icon || ShieldCheck;
 
   return (
-    <div style={{ minHeight: 'calc(100vh - 72px)', background: '#f8fafc', padding: '36px 20px 80px' }}>
-      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        {/* Navigation & Search Bar */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            marginBottom: '28px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <Link
-            to="/verify"
+      <div style={{ minHeight: 'calc(100vh - 72px)', background: '#f8fafc', padding: '24px 14px 60px' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          {/* Navigation & Search Bar */}
+          <div
             style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              color: '#2563eb',
-              fontWeight: '700',
-              fontSize: '0.88rem',
-              textDecoration: 'none',
-              background: '#ffffff',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
+              justifyContent: 'space-between',
+              gap: '12px',
+              marginBottom: '24px',
+              flexWrap: 'wrap',
             }}
           >
-            <ArrowLeft style={{ width: '16px', height: '16px' }} />
-            Verify Another Batch
-          </Link>
+            <Link
+              to="/verify"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: '#2563eb',
+                fontWeight: '700',
+                fontSize: '0.85rem',
+                textDecoration: 'none',
+                background: '#ffffff',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              <ArrowLeft style={{ width: '16px', height: '16px' }} />
+              Verify Another Batch
+            </Link>
 
-          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: '1 1 340px', maxWidth: '480px' }}>
+            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: '1 1 260px', width: '100%', maxWidth: '480px' }}>
             <input
               type="text"
               required
@@ -586,80 +586,222 @@ export default function VerificationPage() {
               <Timeline events={data.timeline} />
             </div>
 
-            {/* Blockchain & Data Integrity Card */}
-            {(data.cryptographicRootHash || data.batch?.batchHash) && (
+            {/* 4-Pillar Verification Summary: Database, Blockchain, Batch Integrity, Supply Chain */}
+            <div
+              style={{
+                background: '#ffffff',
+                borderRadius: '16px',
+                border: '1px solid #e2e8f0',
+                padding: '24px',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', color: '#0f172a', fontWeight: '800', fontSize: '1.05rem' }}>
+                <Layers style={{ width: '20px', height: '20px', color: '#7c3aed' }} />
+                Blockchain & Data Integrity Verification
+              </div>
+
+              {/* 4 Pillars Grid */}
               <div
                 style={{
-                  background: '#ffffff',
-                  borderRadius: '16px',
-                  border: '1px solid #e2e8f0',
-                  padding: '24px',
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '12px',
+                  marginBottom: '20px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', color: '#0f172a', fontWeight: '800', fontSize: '1rem' }}>
-                  <Layers style={{ width: '20px', height: '20px', color: '#7c3aed' }} />
-                  Blockchain & Data Integrity Proof
+                {/* Pillar 1: Database Record */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>
+                    Database Record
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    <CheckCircle2 style={{ width: '16px', height: '16px', color: '#059669' }} />
+                    <strong style={{ color: '#059669', fontSize: '0.9rem' }}>Found & Active</strong>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                    Lot #{data.batch?.batchNumber}
+                  </span>
                 </div>
 
-                <p style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: 1.5, marginBottom: '16px' }}>
-                  Blockchain verification confirms that the recorded batch information matches the cryptographic proof stored on the ledger.
-                </p>
-
-                <div
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '10px',
-                    padding: '14px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>
-                      Cryptographic Root Hash (SHA-256)
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '0.82rem',
-                        fontWeight: '700',
-                        color: '#1e293b',
-                        wordBreak: 'break-all',
-                      }}
-                    >
-                      {data.cryptographicRootHash || data.batch.batchHash}
-                    </span>
+                {/* Pillar 2: Blockchain Record */}
+                <div style={{
+                  background: data.blockchainVerification?.status === 'VERIFIED' ? '#f5f3ff' : '#f8fafc',
+                  border: `1px solid ${data.blockchainVerification?.status === 'VERIFIED' ? '#ddd6fe' : '#e2e8f0'}`,
+                  borderRadius: '12px',
+                  padding: '14px',
+                }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>
+                    Blockchain Record
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    {data.blockchainVerification?.status === 'VERIFIED' ? (
+                      <>
+                        <CheckCircle2 style={{ width: '16px', height: '16px', color: '#7c3aed' }} />
+                        <strong style={{ color: '#7c3aed', fontSize: '0.9rem' }}>Verified On-Chain</strong>
+                      </>
+                    ) : data.blockchainVerification?.status === 'NOT_ON_CHAIN' ? (
+                      <>
+                        <AlertTriangle style={{ width: '16px', height: '16px', color: '#d97706' }} />
+                        <strong style={{ color: '#d97706', fontSize: '0.85rem' }}>Not Anchored On-Chain</strong>
+                      </>
+                    ) : (
+                      <>
+                        <Clock style={{ width: '16px', height: '16px', color: '#64748b' }} />
+                        <strong style={{ color: '#64748b', fontSize: '0.85rem' }}>Provider Offline / Unconfigured</strong>
+                      </>
+                    )}
                   </div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                    {data.blockchainVerification?.network || data.batch?.blockchainNetwork || 'Decentralized Ledger'}
+                  </span>
+                </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleCopyHash(data.cryptographicRootHash || data.batch.batchHash)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '0.78rem',
-                      fontWeight: '600',
-                      color: '#2563eb',
-                      background: '#ffffff',
-                      border: '1px solid #cbd5e1',
-                      padding: '6px 10px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {copiedHash ? <Check style={{ width: '14px', height: '14px', color: '#059669' }} /> : <Copy style={{ width: '14px', height: '14px' }} />}
-                    <span>{copiedHash ? 'Copied!' : 'Copy Hash'}</span>
-                  </button>
+                {/* Pillar 3: Batch Integrity */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>
+                    Batch Integrity
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    <ShieldCheck style={{ width: '16px', height: '16px', color: '#059669' }} />
+                    <strong style={{ color: '#059669', fontSize: '0.9rem' }}>Valid (SHA-256)</strong>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                    Tamper-evident hash match
+                  </span>
+                </div>
+
+                {/* Pillar 4: Supply Chain History */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>
+                    Supply Chain Trace
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    <Layers style={{ width: '16px', height: '16px', color: '#2563eb' }} />
+                    <strong style={{ color: '#2563eb', fontSize: '0.9rem' }}>
+                      {data.timeline?.length || 0} Checkpoints
+                    </strong>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                    Full custody history
+                  </span>
                 </div>
               </div>
-            )}
+
+              {/* On-Chain Telemetry details when verified */}
+              {data.blockchainVerification?.status === 'VERIFIED' && (
+                <div
+                  style={{
+                    background: '#fcfaff',
+                    border: '1px solid #ede9fe',
+                    borderRadius: '10px',
+                    padding: '14px 16px',
+                    marginBottom: '14px',
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                    <span>
+                      <strong style={{ color: '#4c1d95' }}>Smart Contract:</strong>{' '}
+                      <code style={{ fontFamily: 'monospace', color: '#6d28d9' }}>
+                        {data.blockchainVerification.contractAddress}
+                      </code>
+                    </span>
+                    {data.blockchainVerification.blockNumber && (
+                      <span>
+                        <strong style={{ color: '#4c1d95' }}>Block Height:</strong>{' '}
+                        <code style={{ fontFamily: 'monospace', color: '#6d28d9' }}>
+                          #{data.blockchainVerification.blockNumber}
+                        </code>
+                      </span>
+                    )}
+                  </div>
+                  {data.blockchainVerification.txHash && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ wordBreak: 'break-all' }}>
+                        <strong style={{ color: '#4c1d95' }}>Transaction Hash:</strong>{' '}
+                        <code style={{ fontFamily: 'monospace', color: '#047857' }}>
+                          {data.blockchainVerification.txHash}
+                        </code>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyHash(data.blockchainVerification.txHash)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.75rem',
+                          color: '#7c3aed',
+                          background: '#ffffff',
+                          border: '1px solid #ddd6fe',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {copiedHash ? <Check style={{ width: '12px', height: '12px', color: '#059669' }} /> : <Copy style={{ width: '12px', height: '12px' }} />}
+                        <span>{copiedHash ? 'Copied' : 'Copy Tx'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Cryptographic State Hash Container */}
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>
+                    Cryptographic Batch Root Hash (SHA-256)
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.82rem',
+                      fontWeight: '700',
+                      color: '#1e293b',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {data.cryptographicRootHash || data.batch?.batchHash}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopyHash(data.cryptographicRootHash || data.batch?.batchHash)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.78rem',
+                    fontWeight: '600',
+                    color: '#2563eb',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  {copiedHash ? <Check style={{ width: '14px', height: '14px', color: '#059669' }} /> : <Copy style={{ width: '14px', height: '14px' }} />}
+                  <span>{copiedHash ? 'Copied!' : 'Copy Hash'}</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -32,6 +32,14 @@ const PharmacyReceivedPage = () => {
   const [sortOrder, setSortOrder] = useState('newest');
   const [qrModalBatch, setQrModalBatch] = useState(null);
 
+  // Receiving Delivery Modal State
+  const [receivingModalBatch, setReceivingModalBatch] = useState(null);
+  const [receiveLocation, setReceiveLocation] = useState('Dispensary Inward Receiving Bay');
+  const [receiveNotes, setReceiveNotes] = useState('');
+  const [receivingSubmitting, setReceivingSubmitting] = useState(false);
+  const [receiveError, setReceiveError] = useState('');
+  const [receiveSuccess, setReceiveSuccess] = useState('');
+
   const fetchReceivedBatches = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -63,6 +71,38 @@ const PharmacyReceivedPage = () => {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     fetchReceivedBatches();
+  };
+
+  const handleConfirmReceive = async (e) => {
+    if (e) e.preventDefault();
+    if (!receivingModalBatch) return;
+
+    setReceivingSubmitting(true);
+    setReceiveError('');
+    setReceiveSuccess('');
+
+    try {
+      const res = await api.receivePharmacyBatch({
+        batchId: receivingModalBatch._id,
+        location: receiveLocation.trim() || 'Dispensary Inward Receiving Bay',
+        notes: receiveNotes.trim() || 'Shipment inspected and received into dispensary stock.',
+      });
+
+      if (res && res.success) {
+        setReceiveSuccess(`Batch #${receivingModalBatch.batchNumber} successfully confirmed and added to active dispensary stock!`);
+        setTimeout(() => {
+          setReceivingModalBatch(null);
+          setReceiveSuccess('');
+          fetchReceivedBatches();
+        }, 1200);
+      } else {
+        setReceiveError(res?.message || 'Failed to confirm receipt of shipment.');
+      }
+    } catch (err) {
+      setReceiveError(err.message || 'Server error confirming shipment receipt.');
+    } finally {
+      setReceivingSubmitting(false);
+    }
   };
 
   const now = new Date();
@@ -302,8 +342,8 @@ const PharmacyReceivedPage = () => {
               </div>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+            <div className="table-responsive">
+              <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     <th style={{ padding: '14px 18px' }}>Batch Number</th>
@@ -358,6 +398,35 @@ const PharmacyReceivedPage = () => {
                         </td>
                         <td style={{ padding: '16px 18px', textAlign: 'right' }}>
                           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            {batch.status === 'IN_TRANSIT' && (
+                              <button
+                                onClick={() => {
+                                  setReceivingModalBatch(batch);
+                                  setReceiveLocation('Dispensary Inward Receiving Bay');
+                                  setReceiveNotes('');
+                                  setReceiveError('');
+                                  setReceiveSuccess('');
+                                }}
+                                className="btn btn-sm"
+                                style={{
+                                  background: '#059669',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: '700',
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                }}
+                                title="Confirm physical delivery receipt into dispensary"
+                              >
+                                <CheckCircle2 style={{ width: '13px', height: '13px' }} />
+                                Accept Delivery
+                              </button>
+                            )}
                             <button
                               onClick={() => setQrModalBatch(batch)}
                               className="btn btn-secondary btn-sm"
@@ -393,6 +462,122 @@ const PharmacyReceivedPage = () => {
           )}
         </div>
       </div>
+
+      {/* Receiving Delivery Modal */}
+      {receivingModalBatch && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', maxWidth: '480px', width: '100%', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)', position: 'relative' }}>
+            <button
+              onClick={() => setReceivingModalBatch(null)}
+              style={{ position: 'absolute', top: '18px', right: '18px', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+            >
+              <X style={{ width: '20px', height: '20px' }} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle2 style={{ width: '24px', height: '24px' }} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+                  Confirm Delivery Receipt
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '2px 0 0' }}>
+                  Verify custody arrival and record on immutable ledger
+                </p>
+              </div>
+            </div>
+
+            {receiveSuccess ? (
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', padding: '14px', color: '#047857', fontSize: '0.88rem', fontWeight: '600', textAlign: 'center', margin: '16px 0' }}>
+                <CheckCircle2 style={{ width: '28px', height: '28px', margin: '0 auto 8px', display: 'block' }} />
+                {receiveSuccess}
+              </div>
+            ) : (
+              <form onSubmit={handleConfirmReceive}>
+                {receiveError && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', color: '#b91c1c', fontSize: '0.82rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertCircle style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                    <span>{receiveError}</span>
+                  </div>
+                )}
+
+                <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '16px', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ color: '#64748b' }}>Batch Number:</span>
+                    <strong style={{ fontFamily: 'monospace', color: '#059669' }}>#{receivingModalBatch.batchNumber}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ color: '#64748b' }}>Medicine / Product:</span>
+                    <strong style={{ color: '#0f172a' }}>{receivingModalBatch.product?.name || receivingModalBatch.productName || 'Pharmaceutical Product'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Shipment Volume:</span>
+                    <span style={{ fontWeight: '700', color: '#0f172a' }}>{receivingModalBatch.quantity} {receivingModalBatch.unit || 'units'}</span>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                    Dispensary Storage / Receiving Location *
+                  </label>
+                  <input
+                    type="text"
+                    value={receiveLocation}
+                    onChange={(e) => setReceiveLocation(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                    placeholder="e.g., Dispensary Inward Receiving Bay / Refrigerated Depot"
+                  />
+                </div>
+
+                <div style={{ marginBottom: '18px' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                    Delivery Inspection Notes
+                  </label>
+                  <textarea
+                    value={receiveNotes}
+                    onChange={(e) => setReceiveNotes(e.target.value)}
+                    rows={2}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', resize: 'vertical' }}
+                    placeholder="Physical seal intact, packaging temperature verified, tamper-evident tape confirmed..."
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setReceivingModalBatch(null)}
+                    disabled={receivingSubmitting}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '8px 16px' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={receivingSubmitting}
+                    className="btn btn-primary btn-sm"
+                    style={{ padding: '8px 18px', background: '#059669', borderColor: '#059669', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {receivingSubmitting ? (
+                      <>
+                        <Loader2 style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} />
+                        Recording Receipt...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 style={{ width: '14px', height: '14px' }} />
+                        Confirm & Anchor Receipt
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* QR Code Modal */}
       {qrModalBatch && (

@@ -85,7 +85,7 @@ const AdminLicensesPage = () => {
 
       const res = await adminApi.getLicenses(params);
 
-      if (res.success && res.data) {
+      if (res && res.success && res.data) {
         setLicenses(res.data.licenses || []);
         if (res.data.summary) {
           setSummary(res.data.summary);
@@ -94,15 +94,15 @@ const AdminLicensesPage = () => {
           setPagination(prev => ({
             ...prev,
             total: res.data.pagination.total,
-            totalPages: res.data.pagination.totalPages,
+            totalPages: res.data.pagination.totalPages || res.data.pagination.pages || 1,
           }));
         }
       } else {
-        setError(res.message || 'Failed to fetch license records.');
+        throw new Error(res?.message || 'Failed to retrieve license records.');
       }
     } catch (err) {
       console.error('Error fetching licenses:', err);
-      setError('Network error while connecting to Secure Pharma backend API.');
+      setError(err.message || 'Unable to connect to license verification service.');
     } finally {
       setLoading(false);
     }
@@ -112,38 +112,31 @@ const AdminLicensesPage = () => {
     fetchLicenses();
   }, [fetchLicenses]);
 
-  // Load protected document securely when viewing details
-  const loadSecureDocument = async (licenseId) => {
+  // Open review modal and stream document preview blob
+  const handleOpenReview = async (license) => {
+    setSelectedLicense(license);
+    setDocBlobUrl(null);
+    setDocContentType(null);
+    setDocError(null);
+    setDocLoading(true);
+
     try {
-      setDocLoading(true);
-      setDocError(null);
-      if (docBlobUrl) {
-        URL.revokeObjectURL(docBlobUrl);
-        setDocBlobUrl(null);
+      const res = await adminApi.getLicenseDocumentBlob(license._id);
+      if (res && res.blobUrl) {
+        setDocBlobUrl(res.blobUrl);
+        setDocContentType(res.contentType);
+      } else {
+        setDocError('Document file is not accessible or not uploaded.');
       }
-      const { blobUrl, contentType } = await adminApi.getLicenseDocumentBlob(licenseId);
-      setDocBlobUrl(blobUrl);
-      setDocContentType(contentType);
     } catch (err) {
-      console.error('Document fetch error:', err);
-      setDocError(err.message || 'Could not load protected document.');
+      console.error('Error loading license document blob:', err);
+      setDocError('Unable to load document preview. You can still review details and perform verification.');
     } finally {
       setDocLoading(false);
     }
   };
 
-  const handleOpenReview = async (license) => {
-    setSelectedLicense(license);
-    setShowApproveModal(false);
-    setShowRejectModal(false);
-    if (license.documentPath) {
-      await loadSecureDocument(license._id);
-    } else {
-      setDocBlobUrl(null);
-      setDocError('No license document was uploaded for this record.');
-    }
-  };
-
+  // Close review modal & cleanup ObjectURL
   const handleCloseReview = () => {
     if (docBlobUrl) {
       URL.revokeObjectURL(docBlobUrl);
@@ -162,16 +155,16 @@ const AdminLicensesPage = () => {
       setProcessingId(selectedLicense._id);
       const res = await adminApi.approveLicense(selectedLicense._id, approveRemarks);
 
-      if (res.success) {
+      if (res && res.success) {
         setActionFeedback({
           type: 'success',
           text: `License #${selectedLicense.licenseNumber} for ${selectedLicense.organization?.name || 'Organization'} successfully approved.`,
         });
-        setTimeout(() => setActionFeedback({ type: '', text: '' }), 4000);
+        setTimeout(() => setActionFeedback({ type: '', text: '' }), 5000);
         handleCloseReview();
         fetchLicenses();
       } else {
-        setActionFeedback({ type: 'error', text: res.message || 'Failed to approve license.' });
+        setActionFeedback({ type: 'error', text: res?.message || 'Failed to approve license.' });
       }
     } catch (err) {
       setActionFeedback({ type: 'error', text: 'Error connecting to server for license approval.' });
@@ -197,16 +190,16 @@ const AdminLicensesPage = () => {
       setProcessingId(selectedLicense._id);
       const res = await adminApi.rejectLicense(selectedLicense._id, finalReason);
 
-      if (res.success) {
+      if (res && res.success) {
         setActionFeedback({
           type: 'success',
           text: `License #${selectedLicense.licenseNumber} marked as REJECTED.`,
         });
-        setTimeout(() => setActionFeedback({ type: '', text: '' }), 4000);
+        setTimeout(() => setActionFeedback({ type: '', text: '' }), 5000);
         handleCloseReview();
         fetchLicenses();
       } else {
-        setActionFeedback({ type: 'error', text: res.message || 'Failed to reject license.' });
+        setActionFeedback({ type: 'error', text: res?.message || 'Failed to reject license.' });
       }
     } catch (err) {
       setActionFeedback({ type: 'error', text: 'Error connecting to server for license rejection.' });
@@ -218,34 +211,34 @@ const AdminLicensesPage = () => {
 
   // Helper formatting routines
   const getRoleBadge = (type, role) => {
-    const val = type || role || 'MANUFACTURER';
+    const val = (type || role || 'MANUFACTURER').toUpperCase();
     if (val.includes('MANUFACTUR')) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-          <Building2 className="w-3.5 h-3.5" />
+        <span className="badge badge-info" style={{ gap: '6px' }}>
+          <Building2 style={{ width: '12px', height: '12px' }} />
           Manufacturer
         </span>
       );
     }
     if (val.includes('WHOLESALE') || val.includes('DISTRIBUTOR')) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-          <Building2 className="w-3.5 h-3.5" />
+        <span className="badge badge-purple" style={{ gap: '6px' }}>
+          <Building2 style={{ width: '12px', height: '12px' }} />
           Distributor
         </span>
       );
     }
     if (val.includes('PHARMACY')) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300">
-          <Building2 className="w-3.5 h-3.5" />
+        <span className="badge badge-success" style={{ gap: '6px' }}>
+          <Building2 style={{ width: '12px', height: '12px' }} />
           Pharmacy
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-        <Building2 className="w-3.5 h-3.5" />
+      <span className="badge" style={{ gap: '6px' }}>
+        <Building2 style={{ width: '12px', height: '12px' }} />
         {val}
       </span>
     );
@@ -255,329 +248,471 @@ const AdminLicensesPage = () => {
     const s = (status || 'PENDING').toUpperCase();
     if (s === 'APPROVED' || s === 'VERIFIED') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-          <CheckCircle2 className="w-3.5 h-3.5" />
+        <span className="badge badge-success" style={{ gap: '5px' }}>
+          <CheckCircle2 style={{ width: '13px', height: '13px' }} />
           Approved
         </span>
       );
     }
     if (s === 'REJECTED') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
-          <XCircle className="w-3.5 h-3.5" />
+        <span className="badge badge-danger" style={{ gap: '5px' }}>
+          <XCircle style={{ width: '13px', height: '13px' }} />
           Rejected
         </span>
       );
     }
     if (s === 'EXPIRED') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
-          <AlertTriangle className="w-3.5 h-3.5" />
+        <span className="badge badge-purple" style={{ gap: '5px', background: '#fdf2f8', color: '#9d174d', borderColor: '#fbcfe8' }}>
+          <AlertTriangle style={{ width: '13px', height: '13px' }} />
           Expired
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800 animate-pulse">
-        <Clock className="w-3.5 h-3.5" />
+      <span className="badge badge-warning" style={{ gap: '5px' }}>
+        <Clock style={{ width: '13px', height: '13px' }} />
         Pending Review
       </span>
     );
   };
 
   const getExpiryLabel = (expiryDate) => {
-    if (!expiryDate) return <span className="text-slate-400 text-xs">N/A</span>;
+    if (!expiryDate) return <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>N/A</span>;
     const dateObj = new Date(expiryDate);
     const now = new Date();
     const thirtyDays = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     if (dateObj < now) {
       return (
-        <span className="text-rose-600 dark:text-rose-400 font-semibold text-xs flex items-center gap-1">
-          <AlertTriangle className="w-3 h-3" />
+        <span style={{ color: '#dc2626', fontWeight: '700', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <AlertTriangle style={{ width: '13px', height: '13px' }} />
           Expired ({dateObj.toLocaleDateString()})
         </span>
       );
     }
     if (dateObj <= thirtyDays) {
       return (
-        <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs flex items-center gap-1">
-          <Clock className="w-3 h-3" />
+        <span style={{ color: '#d97706', fontWeight: '700', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <Clock style={{ width: '13px', height: '13px' }} />
           Expiring Soon ({dateObj.toLocaleDateString()})
         </span>
       );
     }
-    return <span className="text-slate-700 dark:text-slate-300 text-xs">{dateObj.toLocaleDateString()}</span>;
+    return <span style={{ color: 'var(--text-heading)', fontSize: '0.825rem', fontWeight: '500' }}>{dateObj.toLocaleDateString()}</span>;
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-            <FileCheck className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
-            Admin License Verification Module
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Official regulatory review portal for pharmaceutical supply chain license credentials & organization verification.
-          </p>
+    <div style={{ padding: '24px', maxWidth: '1360px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      
+      {/* PAGE HEADER */}
+      <div
+        className="card"
+        style={{
+          padding: '24px 28px',
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+          color: '#ffffff',
+          boxShadow: 'var(--shadow-lg)',
+          border: '1px solid #334155'
+        }}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+              <span
+                style={{
+                  padding: '3px 10px',
+                  borderRadius: '12px',
+                  fontSize: '0.72rem',
+                  fontWeight: '700',
+                  letterSpacing: '0.05em',
+                  background: 'rgba(37, 99, 235, 0.25)',
+                  color: '#93c5fd',
+                  border: '1px solid rgba(147, 197, 253, 0.3)',
+                  textTransform: 'uppercase'
+                }}
+              >
+                REGULATORY COMPLIANCE
+              </span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.75rem',
+                  color: '#34d399',
+                  fontWeight: '600'
+                }}
+              >
+                <span className="live-dot" style={{ background: '#34d399', boxShadow: '0 0 8px #34d399' }} />
+                Verification Console Active
+              </span>
+            </div>
+            <h1 style={{ fontSize: '1.65rem', fontWeight: '800', color: '#ffffff', margin: '2px 0 4px', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <FileCheck style={{ width: '28px', height: '28px', color: '#60a5fa' }} />
+              License Verification & Authority Review
+            </h1>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', maxWidth: '680px', margin: 0 }}>
+              Official regulatory review portal for pharmaceutical supply chain license credentials, business legitimacy, and operational authorizations.
+            </p>
+          </div>
+
+          <div>
+            <button
+              onClick={fetchLicenses}
+              disabled={loading}
+              className="btn"
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                padding: '9px 16px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <RefreshCw className={loading ? 'animate-spin' : ''} style={{ width: '15px', height: '15px' }} />
+              Refresh Ledger Data
+            </button>
+          </div>
         </div>
-        <button
-          onClick={fetchLicenses}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-750 transition shadow-sm"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Ledger Data
-        </button>
       </div>
 
-      {/* Global Feedback Banner */}
+      {/* FEEDBACK BANNER */}
       {actionFeedback.text && (
         <div
-          className={`p-4 rounded-xl flex items-center justify-between gap-3 text-sm shadow-sm transition animate-in fade-in slide-in-from-top-2 ${
-            actionFeedback.type === 'success'
-              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-          }`}
+          className="card"
+          style={{
+            padding: '14px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            background: actionFeedback.type === 'success' ? '#f0fdf4' : '#fef2f2',
+            borderColor: actionFeedback.type === 'success' ? '#bbf7d0' : '#fecaca',
+            color: actionFeedback.type === 'success' ? '#166534' : '#991b1b',
+            boxShadow: 'var(--shadow-sm)'
+          }}
         >
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {actionFeedback.type === 'success' ? (
-              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <CheckCircle2 style={{ width: '20px', height: '20px', color: '#16a34a', flexShrink: 0 }} />
             ) : (
-              <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400" />
+              <AlertCircle style={{ width: '20px', height: '20px', color: '#dc2626', flexShrink: 0 }} />
             )}
-            <span className="font-medium">{actionFeedback.text}</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>{actionFeedback.text}</span>
           </div>
-          <button onClick={() => setActionFeedback({ type: '', text: '' })} className="opacity-70 hover:opacity-100">
-            <X className="w-4 h-4" />
+          <button
+            onClick={() => setActionFeedback({ type: '', text: '' })}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', padding: '4px' }}
+          >
+            <X style={{ width: '18px', height: '18px' }} />
           </button>
         </div>
       )}
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-1">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Submissions</p>
-          <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{summary.total}</p>
+      {/* SUMMARY KPI CARDS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px' }}>
+        {/* Total Submissions */}
+        <div className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+            <FileText style={{ width: '22px', height: '22px' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.75rem', fontWeight: '800', lineHeight: 1.1, color: 'var(--text-heading)' }}>
+              {summary.total}
+            </div>
+            <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '3px' }}>
+              Total Submissions
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-amber-200 dark:border-amber-900/40 shadow-sm space-y-1 bg-amber-50/20 dark:bg-amber-950/10">
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5" />
-            Pending Review
-          </p>
-          <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{summary.pending}</p>
+        {/* Pending Review */}
+        <div className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', borderColor: '#fde68a', background: '#fffdf5' }}>
+          <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
+            <Clock style={{ width: '22px', height: '22px' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.75rem', fontWeight: '800', lineHeight: 1.1, color: '#b45309' }}>
+              {summary.pending}
+            </div>
+            <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '3px' }}>
+              Pending Review
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/40 shadow-sm space-y-1 bg-emerald-50/20 dark:bg-emerald-950/10">
-          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Approved
-          </p>
-          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{summary.approved}</p>
+        {/* Approved */}
+        <div className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', borderColor: '#bbf7d0', background: '#f6fdf8' }}>
+          <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
+            <CheckCircle2 style={{ width: '22px', height: '22px' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.75rem', fontWeight: '800', lineHeight: 1.1, color: '#15803d' }}>
+              {summary.approved}
+            </div>
+            <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '3px' }}>
+              Approved
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-rose-200 dark:border-rose-900/40 shadow-sm space-y-1 bg-rose-50/20 dark:bg-rose-950/10">
-          <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
-            <XCircle className="w-3.5 h-3.5" />
-            Rejected
-          </p>
-          <p className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">{summary.rejected}</p>
+        {/* Rejected */}
+        <div className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', borderColor: '#fecaca', background: '#fff8f8' }}>
+          <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626' }}>
+            <XCircle style={{ width: '22px', height: '22px' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.75rem', fontWeight: '800', lineHeight: 1.1, color: '#b91c1c' }}>
+              {summary.rejected}
+            </div>
+            <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#991b1b', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '3px' }}>
+              Rejected
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-purple-200 dark:border-purple-900/40 shadow-sm space-y-1 bg-purple-50/20 dark:bg-purple-950/10 col-span-2 sm:col-span-1">
-          <p className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5" />
-            Expired / Warnings
-          </p>
-          <p className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">{summary.expired}</p>
+        {/* Expired / Warnings */}
+        <div className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', borderColor: '#e9d5ff', background: '#fbf7ff' }}>
+          <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#f3e8ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed' }}>
+            <AlertTriangle style={{ width: '22px', height: '22px' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.75rem', fontWeight: '800', lineHeight: 1.1, color: '#6d28d9' }}>
+              {summary.expired}
+            </div>
+            <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#5b21b6', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '3px' }}>
+              Expired / Flags
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search applicant name, email, organization, or license #..."
-            value={search}
-            onChange={e => {
-              setSearch(e.target.value);
-              setPagination(p => ({ ...p, page: 1 }));
-            }}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        {/* Dropdowns */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Status Filter */}
-          <div className="flex items-center gap-1 text-xs">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={statusFilter}
+      {/* SEARCH AND FILTERS TOOLBAR */}
+      <div className="card" style={{ padding: '18px 20px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+          {/* Search Input */}
+          <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: '460px' }}>
+            <Search style={{ width: '16px', height: '16px', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+            <input
+              type="text"
+              placeholder="Search applicant name, email, organization, or license #..."
+              value={search}
               onChange={e => {
-                setStatusFilter(e.target.value);
+                setSearch(e.target.value);
                 setPagination(p => ({ ...p, page: 1 }));
               }}
-              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="PENDING">Pending Review</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="EXPIRED">Expired</option>
-            </select>
+              style={{
+                width: '100%',
+                padding: '9px 12px 9px 38px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem'
+              }}
+            />
           </div>
 
-          {/* Role Filter */}
-          <select
-            value={roleFilter}
-            onChange={e => {
-              setRoleFilter(e.target.value);
-              setPagination(p => ({ ...p, page: 1 }));
-            }}
-            className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-          >
-            <option value="ALL">All Stakeholder Roles</option>
-            <option value="MANUFACTURER">Manufacturer</option>
-            <option value="DISTRIBUTOR">Distributor</option>
-            <option value="PHARMACY">Pharmacy</option>
-          </select>
+          {/* Filter Dropdowns */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Filter style={{ width: '15px', height: '15px', color: 'var(--text-dim)' }} />
+              <select
+                value={statusFilter}
+                onChange={e => {
+                  setStatusFilter(e.target.value);
+                  setPagination(p => ({ ...p, page: 1 }));
+                }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.85rem',
+                  fontWeight: '600'
+                }}
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="PENDING">Pending Review</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="EXPIRED">Expired</option>
+              </select>
+            </div>
 
-          {/* Expiry Filter */}
-          <select
-            value={expiryFilter}
-            onChange={e => {
-              setExpiryFilter(e.target.value);
-              setPagination(p => ({ ...p, page: 1 }));
-            }}
-            className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-          >
-            <option value="ALL">All Expiry Dates</option>
-            <option value="VALID">Valid / Active</option>
-            <option value="EXPIRING_SOON">Expiring Soon (30 Days)</option>
-            <option value="EXPIRED">Expired</option>
-          </select>
-
-          {(search || statusFilter !== 'ALL' || roleFilter !== 'ALL' || expiryFilter !== 'ALL') && (
-            <button
-              onClick={() => {
-                setSearch('');
-                setStatusFilter('ALL');
-                setRoleFilter('ALL');
-                setExpiryFilter('ALL');
+            <select
+              value={roleFilter}
+              onChange={e => {
+                setRoleFilter(e.target.value);
                 setPagination(p => ({ ...p, page: 1 }));
               }}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold px-2 py-1"
+              style={{
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.85rem',
+                fontWeight: '600'
+              }}
             >
-              Reset Filters
-            </button>
-          )}
+              <option value="ALL">All Stakeholder Roles</option>
+              <option value="MANUFACTURER">Manufacturer</option>
+              <option value="DISTRIBUTOR">Distributor</option>
+              <option value="PHARMACY">Pharmacy</option>
+            </select>
+
+            <select
+              value={expiryFilter}
+              onChange={e => {
+                setExpiryFilter(e.target.value);
+                setPagination(p => ({ ...p, page: 1 }));
+              }}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.85rem',
+                fontWeight: '600'
+              }}
+            >
+              <option value="ALL">All Expiry Dates</option>
+              <option value="VALID">Valid / Active</option>
+              <option value="EXPIRING_SOON">Expiring Soon (30 Days)</option>
+              <option value="EXPIRED">Expired</option>
+            </select>
+
+            {(search || statusFilter !== 'ALL' || roleFilter !== 'ALL' || expiryFilter !== 'ALL') && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('ALL');
+                  setRoleFilter('ALL');
+                  setExpiryFilter('ALL');
+                  setPagination(p => ({ ...p, page: 1 }));
+                }}
+                className="btn btn-sm btn-outline"
+                style={{ color: 'var(--primary)', borderColor: 'var(--blue-200)', fontSize: '0.8rem' }}
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Main License Verification Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      {/* LICENSES DATA TABLE CARD */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
-          <div className="p-12 text-center space-y-3">
-            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Querying live database license records...
+          <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+            <div className="animate-spin" style={{ width: '36px', height: '36px', border: '3px solid var(--border-subtle)', borderTopColor: 'var(--primary)', borderRadius: '50%', margin: '0 auto 16px' }} />
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: '500' }}>
+              Querying live database license records & credentials...
             </p>
           </div>
         ) : error ? (
-          <div className="p-12 text-center space-y-3">
-            <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">{error}</h3>
-            <button
-              onClick={fetchLicenses}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold"
-            >
+          <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+            <AlertCircle style={{ width: '42px', height: '42px', color: '#dc2626', margin: '0 auto 12px' }} />
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-heading)', marginBottom: '8px' }}>
+              {error}
+            </h3>
+            <button onClick={fetchLicenses} className="btn btn-primary" style={{ marginTop: '8px' }}>
               Retry Connection
             </button>
           </div>
         ) : licenses.length === 0 ? (
-          <div className="p-12 text-center space-y-2">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">No licenses found</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+          <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+            <CheckCircle2 style={{ width: '44px', height: '44px', color: '#16a34a', margin: '0 auto 12px' }} />
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-heading)', marginBottom: '6px' }}>
+              No licenses found
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '420px', margin: '0 auto' }}>
               {search || statusFilter !== 'ALL' || roleFilter !== 'ALL' || expiryFilter !== 'ALL'
                 ? 'No license records match your active search and filter criteria.'
                 : 'All submitted regulatory credentials have been verified.'}
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700 uppercase tracking-wider">
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-5 py-3.5">Applicant / Organization</th>
-                  <th className="px-5 py-3.5">Role</th>
-                  <th className="px-5 py-3.5">License Number</th>
-                  <th className="px-5 py-3.5">Category & Board</th>
-                  <th className="px-5 py-3.5">Expiry Date</th>
-                  <th className="px-5 py-3.5">Verification Status</th>
-                  <th className="px-5 py-3.5">Submitted</th>
-                  <th className="px-5 py-3.5 text-right">Actions</th>
+                  <th style={{ paddingLeft: '24px' }}>Applicant / Organization</th>
+                  <th>Role</th>
+                  <th>License Number</th>
+                  <th>Category & Board</th>
+                  <th>Expiry Date</th>
+                  <th>Status</th>
+                  <th>Submitted</th>
+                  <th style={{ textAlign: 'right', paddingRight: '24px' }}>Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+              <tbody>
                 {licenses.map(lic => {
                   const orgName = lic.organization?.name || 'Organization Record';
-                  const applicantName = lic.applicant?.name || 'Authorized Representative';
+                  const applicantName = lic.applicant?.name || 'Authorized Submitter';
                   const applicantEmail = lic.applicant?.email || lic.organization?.contactEmail || '';
                   const orgType = lic.organization?.type || lic.licenseType;
 
                   return (
-                    <tr key={lic._id} className="hover:bg-slate-50/70 dark:hover:bg-slate-750/50 transition">
+                    <tr key={lic._id}>
                       {/* Organization & Applicant */}
-                      <td className="px-5 py-4">
-                        <div className="space-y-0.5">
-                          <p className="font-bold text-slate-900 dark:text-white text-sm">{orgName}</p>
-                          <p className="text-slate-500 dark:text-slate-400 text-xs flex items-center gap-1">
-                            <User className="w-3 h-3 text-slate-400" />
-                            {applicantName} {applicantEmail && `(${applicantEmail})`}
-                          </p>
+                      <td style={{ paddingLeft: '24px' }}>
+                        <div>
+                          <div style={{ fontWeight: '700', color: 'var(--text-heading)', fontSize: '0.925rem' }}>
+                            {orgName}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                            <User style={{ width: '12px', height: '12px' }} />
+                            <span>{applicantName}</span>
+                            {applicantEmail && <span>({applicantEmail})</span>}
+                          </div>
                         </div>
                       </td>
 
                       {/* Stakeholder Role */}
-                      <td className="px-5 py-4">{getRoleBadge(orgType, lic.licenseType)}</td>
+                      <td>{getRoleBadge(orgType, lic.licenseType)}</td>
 
                       {/* License Number */}
-                      <td className="px-5 py-4 font-mono font-bold text-indigo-600 dark:text-indigo-400 text-xs">
-                        {lic.licenseNumber}
+                      <td>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: 'var(--primary)', fontSize: '0.85rem' }}>
+                          {lic.licenseNumber}
+                        </span>
                       </td>
 
                       {/* Category & Board */}
-                      <td className="px-5 py-4 text-slate-700 dark:text-slate-300">
-                        <p className="font-medium text-slate-900 dark:text-white">{lic.licenseType}</p>
-                        <p className="text-[11px] text-slate-400">{lic.issuingAuthority || 'Federal Drug Control Agency'}</p>
+                      <td>
+                        <div style={{ fontWeight: '600', color: 'var(--text-heading)', fontSize: '0.85rem' }}>
+                          {lic.licenseType}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '1px' }}>
+                          {lic.issuingAuthority || 'Federal Drug Control Agency'}
+                        </div>
                       </td>
 
                       {/* Expiry Date */}
-                      <td className="px-5 py-4">{getExpiryLabel(lic.expiryDate)}</td>
+                      <td>{getExpiryLabel(lic.expiryDate)}</td>
 
-                      {/* Status */}
-                      <td className="px-5 py-4">{getStatusBadge(lic.verificationStatus)}</td>
+                      {/* Verification Status */}
+                      <td>{getStatusBadge(lic.verificationStatus)}</td>
 
                       {/* Submitted Date */}
-                      <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs">
+                      <td style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
                         {lic.createdAt ? new Date(lic.createdAt).toLocaleDateString() : 'N/A'}
                       </td>
 
-                      {/* Review Actions */}
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
+                      {/* Review Action */}
+                      <td style={{ textAlign: 'right', paddingRight: '24px' }}>
                         <button
                           onClick={() => handleOpenReview(lic)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-semibold border border-indigo-200 dark:border-indigo-800 transition shadow-sm"
+                          className="btn btn-sm btn-outline"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontWeight: '600',
+                            borderColor: 'var(--blue-200)',
+                            color: 'var(--primary)'
+                          }}
                         >
-                          <Eye className="w-3.5 h-3.5" />
+                          <Eye style={{ width: '14px', height: '14px' }} />
                           Review License
                         </button>
                       </td>
@@ -589,302 +724,352 @@ const AdminLicensesPage = () => {
           </div>
         )}
 
-        {/* Pagination Footer */}
+        {/* PAGINATION FOOTER */}
         {pagination.totalPages > 1 && (
-          <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400">
+          <div
+            style={{
+              padding: '14px 24px',
+              borderTop: '1px solid var(--border-subtle)',
+              background: '#f8fafc',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              fontSize: '0.85rem',
+              color: 'var(--text-muted)'
+            }}
+          >
             <div>
-              Showing page <span className="font-bold text-slate-900 dark:text-white">{pagination.page}</span> of{' '}
-              <span className="font-bold text-slate-900 dark:text-white">{pagination.totalPages}</span> ({pagination.total}{' '}
-              total records)
+              Showing page <strong style={{ color: 'var(--text-heading)' }}>{pagination.page}</strong> of{' '}
+              <strong style={{ color: 'var(--text-heading)' }}>{pagination.totalPages}</strong> ({pagination.total} total records)
             </div>
 
-            <div className="flex items-center gap-2">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 disabled={pagination.page <= 1 || loading}
                 onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 disabled:opacity-50 font-semibold"
+                className="btn btn-sm btn-outline"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft style={{ width: '15px', height: '15px' }} />
                 Previous
               </button>
 
               <button
                 disabled={pagination.page >= pagination.totalPages || loading}
                 onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 disabled:opacity-50 font-semibold"
+                className="btn btn-sm btn-outline"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               >
                 Next
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight style={{ width: '15px', height: '15px' }} />
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* License Review Modal / Drawer */}
+      {/* LICENSE REVIEW MODAL */}
       {selectedLicense && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 relative animate-in fade-in zoom-in duration-150 space-y-6 max-h-[90vh] overflow-y-auto my-8">
+        <div className="modal-overlay" onClick={handleCloseReview}>
+          <div
+            className="modal-content"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '840px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px' }}
+          >
             {/* Header */}
-            <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800">
-                  <Award className="w-6 h-6" />
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', border: '1px solid #bfdbfe' }}>
+                  <Award style={{ width: '26px', height: '26px' }} />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-heading)', margin: 0 }}>
                       {selectedLicense.organization?.name || 'Organization Review'}
                     </h2>
                     {getStatusBadge(selectedLicense.verificationStatus)}
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Official Regulatory License Submission Record #{selectedLicense.licenseNumber}
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)', margin: '4px 0 0', fontFamily: 'var(--font-mono)' }}>
+                    Regulatory License Record #{selectedLicense.licenseNumber}
                   </p>
                 </div>
               </div>
 
               <button
                 onClick={handleCloseReview}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: '6px', borderRadius: '8px' }}
               >
-                <X className="w-5 h-5" />
+                <X style={{ width: '20px', height: '20px' }} />
               </button>
             </div>
 
-            {/* Grid Sections */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Applicant & Organization Details */}
-              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700/70 space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-indigo-500" />
-                  Applicant & Entity Details
+            {/* 2-Column Info Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+              {/* Applicant & Entity Details */}
+              <div className="card" style={{ padding: '16px', background: '#f8fafc' }}>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-dim)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Building2 style={{ width: '14px', height: '14px', color: 'var(--primary)' }} />
+                  Applicant & Entity Profile
                 </h3>
 
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">Organization Name:</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.825rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Organization:</span>
+                    <span style={{ fontWeight: '700', color: 'var(--text-heading)' }}>
                       {selectedLicense.organization?.name || 'N/A'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">Stakeholder Role:</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Stakeholder Role:</span>
                     <span>{getRoleBadge(selectedLicense.organization?.type, selectedLicense.licenseType)}</span>
                   </div>
 
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">Reg Org Number:</span>
-                    <span className="font-mono text-slate-900 dark:text-white">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Registration #:</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '600' }}>
                       {selectedLicense.organization?.registrationNumber || 'N/A'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">Representative Name:</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Representative:</span>
+                    <span style={{ fontWeight: '600', color: 'var(--text-heading)' }}>
                       {selectedLicense.applicant?.name || 'Authorized Submitter'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">Contact Email:</span>
-                    <span className="text-slate-900 dark:text-white">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Contact Email:</span>
+                    <span style={{ color: 'var(--text-heading)' }}>
                       {selectedLicense.applicant?.email || selectedLicense.organization?.contactEmail || 'N/A'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-500 dark:text-slate-400">Address / Jurisdiction:</span>
-                    <span className="text-slate-900 dark:text-white text-right max-w-[180px] truncate">
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Facility Location:</span>
+                    <span style={{ color: 'var(--text-heading)', textAlign: 'right', maxWidth: '180px' }}>
                       {selectedLicense.organization?.address || 'Licensed Facility'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* License Details & Document Hash */}
-              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700/70 space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-indigo-500" />
+              {/* License Specification */}
+              <div className="card" style={{ padding: '16px', background: '#f8fafc' }}>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-dim)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FileText style={{ width: '14px', height: '14px', color: 'var(--primary)' }} />
                   License Specification
                 </h3>
 
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">License Number:</span>
-                    <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.825rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>License Number:</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', color: 'var(--primary)' }}>
                       {selectedLicense.licenseNumber}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">License Classification:</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{selectedLicense.licenseType}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Classification:</span>
+                    <span style={{ fontWeight: '600', color: 'var(--text-heading)' }}>
+                      {selectedLicense.licenseType}
+                    </span>
                   </div>
 
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">Issuing Authority:</span>
-                    <span className="text-slate-900 dark:text-white">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Issuing Authority:</span>
+                    <span style={{ color: 'var(--text-heading)' }}>
                       {selectedLicense.issuingAuthority || 'Federal Drug Control Agency'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">Issue Date:</span>
-                    <span className="text-slate-900 dark:text-white">
-                      {selectedLicense.issueDate ? new Date(selectedLicense.issueDate).toLocaleDateString() : 'N/A'}
-                    </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Issue Date:</span>
+                    <span>{selectedLicense.issueDate ? new Date(selectedLicense.issueDate).toLocaleDateString() : 'N/A'}</span>
                   </div>
 
-                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">Expiry Date:</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Expiry Date:</span>
                     <span>{getExpiryLabel(selectedLicense.expiryDate)}</span>
                   </div>
 
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-500 dark:text-slate-400">Doc Cryptographic Hash:</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Document Hash:</span>
                     <span
-                      className="font-mono text-[10px] text-slate-600 dark:text-slate-400 max-w-[150px] truncate"
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-dim)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       title={selectedLicense.documentHash || 'SHA-256 Digest'}
                     >
-                      {selectedLicense.documentHash || 'Computed at upload'}
+                      {selectedLicense.documentHash || 'Recorded on upload'}
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Internal System Validation Checklist (No Fake Registry Claims) */}
-            <div className="bg-indigo-50/40 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/50 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5 uppercase tracking-wider">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  Internal System Validation & Ledger Verification
+            {/* Internal System Validation Checklist */}
+            <div
+              className="card"
+              style={{
+                padding: '16px',
+                background: '#f0f7ff',
+                borderColor: '#bfdbfe'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <h3 style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck style={{ width: '16px', height: '16px', color: '#2563eb' }} />
+                  Internal System Validation Checklist
                 </h3>
-                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">Internal Audit Checks</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#2563eb' }}>Regulatory Compliance Checks</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px', fontSize: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#ffffff', borderRadius: '8px', border: '1px solid #dbeafe' }}>
+                  <CheckCircle2 style={{ width: '16px', height: '16px', color: '#16a34a', flexShrink: 0 }} />
                   <span>Unique License Number Format Verified</span>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#ffffff', borderRadius: '8px', border: '1px solid #dbeafe' }}>
+                  <CheckCircle2 style={{ width: '16px', height: '16px', color: '#16a34a', flexShrink: 0 }} />
                   <span>Organization Record Linked & Active</span>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#ffffff', borderRadius: '8px', border: '1px solid #dbeafe' }}>
                   {selectedLicense.expiryDate && new Date(selectedLicense.expiryDate) < new Date() ? (
-                    <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                    <AlertTriangle style={{ width: '16px', height: '16px', color: '#dc2626', flexShrink: 0 }} />
                   ) : (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <CheckCircle2 style={{ width: '16px', height: '16px', color: '#16a34a', flexShrink: 0 }} />
                   )}
                   <span>
-                    Expiry Check:{' '}
+                    Expiry Validation:{' '}
                     {selectedLicense.expiryDate && new Date(selectedLicense.expiryDate) < new Date()
                       ? 'Expired Credential'
-                      : 'Unexpired Date Window'}
+                      : 'Valid Operational Window'}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Cryptographic File Hash Recorded</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#ffffff', borderRadius: '8px', border: '1px solid #dbeafe' }}>
+                  <CheckCircle2 style={{ width: '16px', height: '16px', color: '#16a34a', flexShrink: 0 }} />
+                  <span>Tamper-Proof File Digest Recorded</span>
                 </div>
               </div>
             </div>
 
-            {/* Authenticated Protected Document Viewer */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Lock className="w-4 h-4 text-indigo-500" />
+            {/* Protected License Document Preview */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h3 style={{ fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Lock style={{ width: '14px', height: '14px', color: 'var(--primary)' }} />
                 Protected License Document Preview (Authenticated Stream)
               </h3>
 
-              <div className="bg-slate-900 text-white rounded-xl p-4 min-h-[220px] flex items-center justify-center relative overflow-hidden border border-slate-700">
+              <div
+                style={{
+                  background: '#0f172a',
+                  color: '#ffffff',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '16px',
+                  minHeight: '200px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid #334155'
+                }}
+              >
                 {docLoading ? (
-                  <div className="text-center space-y-2">
-                    <div className="w-7 h-7 border-3 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p className="text-xs text-slate-400 font-medium">Decrypting & fetching protected document blob...</p>
+                  <div style={{ textAlign: 'center' }}>
+                    <div className="animate-spin" style={{ width: '28px', height: '28px', border: '3px solid #334155', borderTopColor: '#60a5fa', borderRadius: '50%', margin: '0 auto 10px' }} />
+                    <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Decrypting & streaming protected document blob...</p>
                   </div>
                 ) : docError ? (
-                  <div className="text-center space-y-2 p-6">
-                    <FileText className="w-10 h-10 text-slate-500 mx-auto" />
-                    <p className="text-xs text-slate-300 font-medium">{docError}</p>
-                    <p className="text-[11px] text-slate-500">
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <FileText style={{ width: '36px', height: '36px', color: '#64748b', margin: '0 auto 8px' }} />
+                    <p style={{ fontSize: '0.85rem', color: '#cbd5e1', fontWeight: '500' }}>{docError}</p>
+                    <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
                       Document access is restricted to authenticated administrators.
                     </p>
                   </div>
                 ) : docBlobUrl ? (
-                  <div className="w-full space-y-3 text-center">
+                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
                     {docContentType?.includes('image') ? (
-                      <div className="max-h-72 overflow-auto rounded-lg bg-slate-950 p-2 border border-slate-800">
+                      <div style={{ maxHeight: '280px', overflow: 'auto', borderRadius: '8px', background: '#020617', padding: '8px', width: '100%', textAlign: 'center' }}>
                         <img
                           src={docBlobUrl}
-                          alt="Official License File"
-                          className="max-h-64 mx-auto object-contain rounded-md"
+                          alt="Official License Document"
+                          style={{ maxHeight: '260px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }}
                         />
                       </div>
                     ) : (
                       <iframe
                         src={docBlobUrl}
                         title="License Document Viewer"
-                        className="w-full h-64 rounded-lg bg-white border border-slate-800"
+                        style={{ width: '100%', height: '280px', borderRadius: '8px', background: '#ffffff', border: '1px solid #334155' }}
                       />
                     )}
 
-                    <div className="flex items-center justify-center gap-3 pt-1">
+                    <div>
                       <a
                         href={docBlobUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition"
+                        className="btn btn-primary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        Open Document in Secure Tab
+                        <ExternalLink style={{ width: '14px', height: '14px' }} />
+                        Open Document in Secure Full Tab
                       </a>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400">No document preview available.</p>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No document preview available.</p>
                 )}
               </div>
             </div>
 
-            {/* Rejection / Review History if applicable */}
+            {/* Previous Rejection Reason if any */}
             {selectedLicense.rejectionReason && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900/60 text-xs text-rose-900 dark:text-rose-300 space-y-1">
-                <p className="font-bold flex items-center gap-1">
-                  <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                  Previous Rejection Record:
-                </p>
-                <p className="pl-5">{selectedLicense.rejectionReason}</p>
+              <div
+                className="card"
+                style={{
+                  padding: '12px 16px',
+                  background: '#fef2f2',
+                  borderColor: '#fca5a5',
+                  color: '#991b1b',
+                  fontSize: '0.825rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px'
+                }}
+              >
+                <XCircle style={{ width: '16px', height: '16px', color: '#dc2626', flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '2px' }}>Previous Rejection Notice:</strong>
+                  {selectedLicense.rejectionReason}
+                </div>
               </div>
             )}
 
             {/* Modal Actions Footer */}
-            <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-4">
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
               <button
                 onClick={handleCloseReview}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition"
+                className="btn btn-outline"
+                style={{ fontSize: '0.85rem' }}
               >
                 Close Window
               </button>
 
-              <div className="flex items-center gap-3">
-                {/* Double Review Protection: Disable buttons if already approved/rejected */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 {selectedLicense.verificationStatus === 'APPROVED' || selectedLicense.verificationStatus === 'VERIFIED' ? (
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Already Verified & Approved
+                  <span className="badge badge-success" style={{ padding: '8px 14px', fontSize: '0.85rem', gap: '6px' }}>
+                    <CheckCircle2 style={{ width: '16px', height: '16px' }} />
+                    Already Verified & Operational
                   </span>
                 ) : selectedLicense.verificationStatus === 'REJECTED' ? (
-                  <span className="text-xs text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 px-3 py-1.5 bg-rose-50 dark:bg-rose-950/50 rounded-lg border border-rose-200 dark:border-rose-800">
-                    <XCircle className="w-4 h-4" />
+                  <span className="badge badge-danger" style={{ padding: '8px 14px', fontSize: '0.85rem', gap: '6px' }}>
+                    <XCircle style={{ width: '16px', height: '16px' }} />
                     Application Rejected
                   </span>
                 ) : (
@@ -892,18 +1077,20 @@ const AdminLicensesPage = () => {
                     <button
                       onClick={() => setShowRejectModal(true)}
                       disabled={processingId === selectedLicense._id}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition shadow-sm disabled:opacity-50"
+                      className="btn btn-danger"
+                      style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <XCircle className="w-4 h-4" />
+                      <XCircle style={{ width: '16px', height: '16px' }} />
                       Reject License
                     </button>
 
                     <button
                       onClick={() => setShowApproveModal(true)}
                       disabled={processingId === selectedLicense._id}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-sm disabled:opacity-50"
+                      className="btn btn-success"
+                      style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <CheckCircle2 className="w-4 h-4" />
+                      <CheckCircle2 style={{ width: '16px', height: '16px' }} />
                       Approve & Grant Operational Status
                     </button>
                   </>
@@ -914,44 +1101,52 @@ const AdminLicensesPage = () => {
         </div>
       )}
 
-      {/* Confirmation Step 1: Approve Modal */}
+      {/* CONFIRM APPROVAL MODAL */}
       {showApproveModal && selectedLicense && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-full">
-                <CheckCircle2 className="w-6 h-6" />
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: '480px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
+                <CheckCircle2 style={{ width: '24px', height: '24px' }} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Confirm License Approval</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-heading)', margin: 0 }}>
+                  Confirm License Approval
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', margin: '2px 0 0' }}>
                   Grant active supply chain operational status
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Are you sure you want to approve license <strong className="text-slate-900 dark:text-white">#{selectedLicense.licenseNumber}</strong> for{' '}
-              <strong className="text-slate-900 dark:text-white">{selectedLicense.organization?.name}</strong>?
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: '1.5', margin: 0 }}>
+              Are you sure you want to approve license <strong style={{ color: 'var(--text-heading)' }}>#{selectedLicense.licenseNumber}</strong> for{' '}
+              <strong style={{ color: 'var(--text-heading)' }}>{selectedLicense.organization?.name}</strong>?
             </p>
 
-            <div className="space-y-1 text-xs">
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Optional Verification Remarks:
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-heading)' }}>
+                Verification Remarks (Optional):
               </label>
               <textarea
                 value={approveRemarks}
                 onChange={e => setApproveRemarks(e.target.value)}
                 placeholder="License documentation verified and compliant with regulatory standards."
-                className="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 rows={3}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.85rem'
+                }}
               />
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', paddingTop: '8px' }}>
               <button
                 onClick={() => setShowApproveModal(false)}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold"
+                className="btn btn-outline"
+                style={{ fontSize: '0.85rem' }}
               >
                 Cancel
               </button>
@@ -959,7 +1154,8 @@ const AdminLicensesPage = () => {
               <button
                 onClick={handleConfirmApprove}
                 disabled={processingId === selectedLicense._id}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                className="btn btn-success"
+                style={{ fontSize: '0.85rem' }}
               >
                 {processingId === selectedLicense._id ? 'Processing...' : 'Confirm Approval'}
               </button>
@@ -968,31 +1164,39 @@ const AdminLicensesPage = () => {
         </div>
       )}
 
-      {/* Confirmation Step 2: Reject Modal */}
+      {/* CONFIRM REJECTION MODAL */}
       {showRejectModal && selectedLicense && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 rounded-full">
-                <XCircle className="w-6 h-6" />
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: '480px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626' }}>
+                <XCircle style={{ width: '24px', height: '24px' }} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Confirm License Rejection</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-heading)', margin: 0 }}>
+                  Confirm License Rejection
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', margin: '2px 0 0' }}>
                   Reject license application & restrict account access
                 </p>
               </div>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Primary Rejection Category:
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-heading)' }}>
+                  Primary Rejection Reason Category:
                 </label>
                 <select
                   value={rejectionPreset}
                   onChange={e => setRejectionPreset(e.target.value)}
-                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white font-medium"
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.85rem',
+                    fontWeight: '600'
+                  }}
                 >
                   <option value="Invalid license document">Invalid license document</option>
                   <option value="Expired license document">Expired license document</option>
@@ -1003,24 +1207,30 @@ const AdminLicensesPage = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Detailed Explanation (Sent to Applicant):
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-heading)' }}>
+                  Detailed Guidance (Delivered to Applicant):
                 </label>
                 <textarea
                   value={rejectionDetails}
                   onChange={e => setRejectionDetails(e.target.value)}
                   placeholder="Provide explicit guidance on why this license was rejected and what corrections are required..."
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
                   rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.85rem'
+                  }}
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', paddingTop: '8px' }}>
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold"
+                className="btn btn-outline"
+                style={{ fontSize: '0.85rem' }}
               >
                 Cancel
               </button>
@@ -1028,7 +1238,8 @@ const AdminLicensesPage = () => {
               <button
                 onClick={handleConfirmReject}
                 disabled={processingId === selectedLicense._id}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                className="btn btn-danger"
+                style={{ fontSize: '0.85rem' }}
               >
                 {processingId === selectedLicense._id ? 'Processing...' : 'Confirm Rejection'}
               </button>

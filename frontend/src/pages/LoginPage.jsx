@@ -258,14 +258,17 @@ export default function LoginPage() {
       </div>
 
       {/* Right Column: Modern Enterprise Login Form */}
-      <div style={{
-        flex: '1 1 50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px 24px',
-        background: '#ffffff',
-      }}>
+      <div
+        className="auth-form-column"
+        style={{
+          flex: '1 1 50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '40px 24px',
+          background: '#ffffff',
+        }}
+      >
         <div style={{ maxWidth: '440px', width: '100%' }}>
           {/* Mobile Header Branding */}
           <div className="mobile-only-header" style={{ marginBottom: '24px', textAlign: 'center' }}>

@@ -26,8 +26,9 @@ const getAllEvents = async (req, res, next) => {
     if (batchId) filter.batch = batchId;
     if (eventType) filter.eventType = eventType.toUpperCase();
 
-    if (search && search.trim()) {
-      const searchRegex = { $regex: search.trim(), $options: "i" };
+    if (search && typeof search === "string" && search.trim()) {
+      const cleanSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = { $regex: cleanSearch, $options: "i" };
       const matchingBatches = await Batch.find({
         $or: [{ batchNumber: searchRegex }, { qrIdentifier: searchRegex }],
       }).select("_id");
@@ -105,6 +106,30 @@ const getBatchEventsTimeline = async (req, res, next) => {
       });
     }
 
+    // Role Ownership / Custody Access Control (IDOR Prevention)
+    if (req.user.role === "MANUFACTURER") {
+      const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+      const batchMfgId = (batch.manufacturer?._id || batch.manufacturer || "").toString();
+      if (userOrgId && batchMfgId && userOrgId !== batchMfgId) {
+        return res.status(403).json({
+          success: false,
+          message: "Access forbidden: You do not have authorization to view this batch timeline.",
+        });
+      }
+    } else if (req.user.role === "DISTRIBUTOR" || req.user.role === "PHARMACY") {
+      const userOrgId = (req.user.organization?._id || req.user.organization || "").toString();
+      const hasAccess = await SupplyChainEvent.exists({
+        batch: batch._id,
+        $or: [{ fromOrganization: userOrgId }, { toOrganization: userOrgId }],
+      });
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: "Access forbidden: You do not have authorization to view this batch timeline.",
+        });
+      }
+    }
+
     const events = await SupplyChainEvent.find({ batch: batch._id })
       .populate("fromOrganization", "name type address contactEmail")
       .populate("toOrganization", "name type address contactEmail")
@@ -160,16 +185,32 @@ const recordEvent = async (req, res, next) => {
     const fromOrgId = req.user.organization?._id || req.user.organization;
 
     // Role Custody & Ownership Authorization Check for Manufacturers
+    const userOrgId = (fromOrgId || "").toString();
     if (req.user.role === "MANUFACTURER") {
       const batchMfgId = (batch.manufacturer?._id || batch.manufacturer || "").toString();
-      const userOrgId = (fromOrgId || "").toString();
-
       if (userOrgId && batchMfgId && userOrgId !== batchMfgId) {
         return res.status(403).json({
           success: false,
           message: "Access forbidden: You do not have custody of this batch.",
         });
       }
+    }
+
+    // Physical Custody Check: Verify user org is legitimate current holder
+    const currentHolderId = (batch.currentHolder?._id || batch.currentHolder || "").toString();
+    if (currentHolderId && userOrgId && currentHolderId !== userOrgId) {
+      return res.status(403).json({
+        success: false,
+        message: "Access forbidden: You no longer have physical or legal custody of this batch. It has already been transferred downstream.",
+      });
+    }
+
+    // Prevent duplicate dispatch if already in transit
+    if (["DISPATCHED", "SHIPPED", "TRANSFERRED"].includes(normalizedEventType) && batch.status === "IN_TRANSIT") {
+      return res.status(400).json({
+        success: false,
+        message: "Batch is currently in transit and cannot be dispatched again until received by destination.",
+      });
     }
 
     // Status Validation: Recalled or Expired batches cannot be transferred
@@ -270,7 +311,7 @@ const recordEvent = async (req, res, next) => {
       uniqueEventId,
       transactionHash: blockchainRecord?.transactionHash || txHash,
       blockNumber: blockchainRecord?.blockNumber,
-      blockchainNetwork: blockchainRecord?.network || "Sepolia Ethereum Testnet (Simulated Proof)",
+      blockchainNetwork: blockchainRecord?.network || null,
       eventDate: new Date(),
     });
 

@@ -58,6 +58,62 @@ const LICENSE_CLASSIFICATIONS = [
   { value: 'IMPORT_EXPORT', label: 'International Trade Permit' },
 ];
 
+// Helper to format 10-digit Indian mobile numbers (e.g., 98765 43210)
+const formatIndianPhoneNumber = (rawVal) => {
+  if (!rawVal) return '';
+
+  let cleaned = rawVal.trim();
+  if (cleaned.startsWith('+91')) {
+    cleaned = cleaned.slice(3);
+  } else if (cleaned.startsWith('+')) {
+    cleaned = cleaned.slice(1);
+  }
+
+  let digits = cleaned.replace(/\D/g, '');
+
+  // Strip leading 91 or 0 if more than 10 digits
+  if (digits.length > 10 && digits.startsWith('91')) {
+    digits = digits.slice(2);
+  } else if (digits.length > 10 && digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+
+  digits = digits.slice(0, 10);
+
+  if (digits.length > 5) {
+    return `${digits.slice(0, 5)} ${digits.slice(5)}`;
+  }
+  return digits;
+};
+
+// Helper to evaluate password strength according to modern security standards
+const evaluatePasswordStrength = (pwd) => {
+  const p = pwd || '';
+  const rules = [
+    { id: 'length', label: '8+ chars', met: p.length >= 8 },
+    { id: 'upper', label: 'Uppercase (A-Z)', met: /[A-Z]/.test(p) },
+    { id: 'lower', label: 'Lowercase (a-z)', met: /[a-z]/.test(p) },
+    { id: 'number', label: 'Number (0-9)', met: /[0-9]/.test(p) },
+    { id: 'special', label: 'Symbol (!@#$)', met: /[^A-Za-z0-9]/.test(p) },
+  ];
+
+  const metCount = rules.filter((r) => r.met).length;
+
+  if (p.length === 0) {
+    return { rules, score: 0, label: '', color: '#cbd5e1', isStrong: false };
+  }
+  if (metCount <= 2) {
+    return { rules, score: 1, label: 'Weak', color: '#ef4444', isStrong: false };
+  }
+  if (metCount === 3) {
+    return { rules, score: 2, label: 'Fair', color: '#f97316', isStrong: false };
+  }
+  if (metCount === 4) {
+    return { rules, score: 3, label: 'Good', color: '#eab308', isStrong: false };
+  }
+  return { rules, score: 4, label: 'Strong', color: '#10b981', isStrong: true };
+};
+
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: '',
@@ -82,6 +138,17 @@ export default function RegisterPage() {
   const [generalError, setGeneralError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(null);
+  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
+
+  const passwordStrength = evaluatePasswordStrength(formData.password);
+
+  const handlePhoneChange = (e) => {
+    const formatted = formatIndianPhoneNumber(e.target.value);
+    setFormData((prev) => ({ ...prev, contactPhone: formatted }));
+    if (fieldErrors.contactPhone) {
+      setFieldErrors((prev) => ({ ...prev, contactPhone: null }));
+    }
+  };
 
   const fileInputRef = useRef(null);
   const { register } = useAuth();
@@ -187,8 +254,17 @@ export default function RegisterPage() {
 
     if (!formData.password) {
       errors.password = 'Password is required.';
-    } else if (formData.password.length < 6) {
-      errors.password = 'Password must be at least 6 characters.';
+    } else {
+      const unmet = [];
+      if (formData.password.length < 8) unmet.push('at least 8 characters');
+      if (!/[A-Z]/.test(formData.password)) unmet.push('an uppercase letter (A-Z)');
+      if (!/[a-z]/.test(formData.password)) unmet.push('a lowercase letter (a-z)');
+      if (!/[0-9]/.test(formData.password)) unmet.push('a number (0-9)');
+      if (!/[^A-Za-z0-9]/.test(formData.password)) unmet.push('a special symbol (!@#$%^&*)');
+
+      if (unmet.length > 0) {
+        errors.password = `Password must include ${unmet.join(', ')}.`;
+      }
     }
 
     if (!formData.confirmPassword) {
@@ -199,6 +275,15 @@ export default function RegisterPage() {
 
     if (!agreedToTerms) {
       errors.agreedToTerms = 'You must accept the authorization statement.';
+    }
+
+    if (formData.contactPhone && formData.contactPhone.trim()) {
+      const cleanDigits = formData.contactPhone.replace(/\D/g, '');
+      if (cleanDigits.length !== 10) {
+        errors.contactPhone = 'Please enter a valid 10-digit Indian phone number.';
+      } else if (!/^[6-9]/.test(cleanDigits)) {
+        errors.contactPhone = 'Indian mobile number must start with 6, 7, 8, or 9.';
+      }
     }
 
     setFieldErrors(errors);
@@ -225,19 +310,32 @@ export default function RegisterPage() {
     payload.append('licenseNumber', formData.licenseNumber.trim().toUpperCase());
     payload.append('licenseType', formData.licenseType);
     if (formData.address.trim()) payload.append('address', formData.address.trim());
-    if (formData.contactPhone.trim()) payload.append('contactPhone', formData.contactPhone.trim());
+    if (formData.contactPhone.trim()) {
+      const cleanDigits = formData.contactPhone.replace(/\D/g, '');
+      if (cleanDigits.length === 10) {
+        payload.append('contactPhone', `+91 ${cleanDigits.slice(0, 5)} ${cleanDigits.slice(5)}`);
+      } else {
+        payload.append('contactPhone', formData.contactPhone.trim());
+      }
+    }
     payload.append('licenseDocument', licenseFile);
 
     try {
       const res = await register(payload);
 
       if (res && res.success) {
+        const cleanDigits = formData.contactPhone.replace(/\D/g, '');
+        const savedPhone = cleanDigits.length === 10
+          ? `+91 ${cleanDigits.slice(0, 5)} ${cleanDigits.slice(5)}`
+          : formData.contactPhone.trim() || null;
+
         setRegistrationSuccess({
           user: res.user,
           organizationName: formData.organizationName.trim(),
           organizationType: formData.organizationType,
           licenseNumber: formData.licenseNumber.trim().toUpperCase(),
           email: formData.email.trim().toLowerCase(),
+          contactPhone: savedPhone,
         });
       } else {
         const backendMsg = res?.message || 'Registration failed.';
@@ -346,6 +444,7 @@ export default function RegisterPage() {
 
       {/* Right Column: Registration Form */}
       <div
+        className="auth-form-column"
         style={{
           flex: '1 1 62%',
           padding: '36px 32px',
@@ -410,6 +509,9 @@ export default function RegisterPage() {
                 <div style={{ color: '#475569', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div>License No: <strong>{registrationSuccess.licenseNumber}</strong></div>
                   <div>Official Email: <strong>{registrationSuccess.email}</strong></div>
+                  {registrationSuccess.contactPhone && (
+                    <div>Contact Phone: <strong>{registrationSuccess.contactPhone}</strong></div>
+                  )}
                   <div>Account Status: <StatusBadge status="PENDING" /></div>
                 </div>
               </div>
@@ -560,23 +662,70 @@ export default function RegisterPage() {
 
                   <div>
                     <label htmlFor="contactPhone" style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
-                      Contact Phone
+                      Contact Phone <span style={{ fontSize: '0.75rem', fontWeight: '400', color: '#64748b' }}>(India)</span>
                     </label>
-                    <input
-                      id="contactPhone"
-                      type="tel"
-                      value={formData.contactPhone}
-                      onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                      placeholder="+1 (555) 000-0000"
+                    <div
                       style={{
-                        width: '100%',
-                        padding: '9px 12px',
+                        display: 'flex',
+                        alignItems: 'stretch',
                         borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
-                        fontSize: '0.88rem',
-                        outline: 'none',
+                        border: `1px solid ${fieldErrors.contactPhone ? '#ef4444' : isPhoneFocused ? '#2563eb' : '#cbd5e1'}`,
+                        boxShadow: isPhoneFocused ? '0 0 0 2px rgba(37, 99, 235, 0.15)' : 'none',
+                        background: '#ffffff',
+                        overflow: 'hidden',
+                        transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                       }}
-                    />
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '0 10px',
+                          background: '#f8fafc',
+                          borderRight: `1px solid ${fieldErrors.contactPhone ? '#ef4444' : isPhoneFocused ? '#2563eb' : '#cbd5e1'}`,
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          color: '#334155',
+                          userSelect: 'none',
+                          flexShrink: 0,
+                          transition: 'border-color 0.15s ease',
+                        }}
+                        title="India (+91)"
+                      >
+                        <span role="img" aria-label="India flag" style={{ fontSize: '1rem', lineHeight: 1 }}>🇮🇳</span>
+                        <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: '600' }}>+91</span>
+                      </div>
+                      <input
+                        id="contactPhone"
+                        type="tel"
+                        value={formData.contactPhone}
+                        onChange={handlePhoneChange}
+                        onFocus={() => setIsPhoneFocused(true)}
+                        onBlur={() => setIsPhoneFocused(false)}
+                        placeholder="98765 43210"
+                        maxLength={11}
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          border: 'none',
+                          fontSize: '0.88rem',
+                          outline: 'none',
+                          background: 'transparent',
+                          fontVariantNumeric: 'tabular-nums',
+                          letterSpacing: '0.5px',
+                        }}
+                      />
+                    </div>
+                    {fieldErrors.contactPhone ? (
+                      <span style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '3px', display: 'block' }}>
+                        {fieldErrors.contactPhone}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '3px', display: 'block' }}>
+                        10-digit Indian mobile number (e.g. 98765 43210)
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -709,7 +858,7 @@ export default function RegisterPage() {
                 </div>
 
                 {/* Account Credentials */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', alignItems: 'start' }}>
                   <div>
                     <label htmlFor="representativeName" style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
                       Full Name *
@@ -781,7 +930,7 @@ export default function RegisterPage() {
                           setFormData({ ...formData, password: e.target.value });
                           if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: null });
                         }}
-                        placeholder="Min. 6 characters"
+                        placeholder="Create strong password"
                         style={{
                           width: '100%',
                           padding: '9px 36px 9px 12px',
@@ -803,12 +952,69 @@ export default function RegisterPage() {
                           cursor: 'pointer',
                           color: '#94a3b8',
                         }}
+                        title={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? <EyeOff style={{ width: '16px', height: '16px' }} /> : <Eye style={{ width: '16px', height: '16px' }} />}
                       </button>
                     </div>
+
+                    {/* Password Strength Meter */}
+                    {formData.password ? (
+                      <div style={{ marginTop: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Strength:</span>
+                          <span style={{ fontSize: '0.72rem', fontWeight: '700', color: passwordStrength.color }}>
+                            {passwordStrength.label}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                          {[1, 2, 3, 4].map((seg) => (
+                            <div
+                              key={seg}
+                              style={{
+                                flex: 1,
+                                height: '4px',
+                                borderRadius: '2px',
+                                backgroundColor: seg <= passwordStrength.score ? passwordStrength.color : '#e2e8f0',
+                                transition: 'background-color 0.25s ease',
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Requirements Checklist Chips */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '6px' }}>
+                      {passwordStrength.rules.map((rule) => (
+                        <span
+                          key={rule.id}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 7px',
+                            borderRadius: '12px',
+                            fontSize: '0.7rem',
+                            fontWeight: rule.met ? '600' : '400',
+                            background: rule.met ? '#ecfdf5' : '#f8fafc',
+                            color: rule.met ? '#059669' : '#64748b',
+                            border: `1px solid ${rule.met ? '#a7f3d0' : '#e2e8f0'}`,
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          {rule.met ? (
+                            <Check style={{ width: '11px', height: '11px', strokeWidth: 3 }} />
+                          ) : (
+                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#94a3b8' }} />
+                          )}
+                          {rule.label}
+                        </span>
+                      ))}
+                    </div>
+
                     {fieldErrors.password && (
-                      <span style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '2px', display: 'block' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '6px', display: 'block', lineHeight: 1.35 }}>
                         {fieldErrors.password}
                       </span>
                     )}
@@ -849,12 +1055,31 @@ export default function RegisterPage() {
                           cursor: 'pointer',
                           color: '#94a3b8',
                         }}
+                        title={showConfirmPassword ? 'Hide password' : 'Show password'}
                       >
                         {showConfirmPassword ? <EyeOff style={{ width: '16px', height: '16px' }} /> : <Eye style={{ width: '16px', height: '16px' }} />}
                       </button>
                     </div>
+
+                    {/* Real-time Match Indicator */}
+                    {formData.confirmPassword ? (
+                      <div style={{ marginTop: '6px' }}>
+                        {formData.password === formData.confirmPassword ? (
+                          <span style={{ fontSize: '0.73rem', color: '#059669', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 style={{ width: '13px', height: '13px', color: '#10b981' }} />
+                            Passwords match
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.73rem', color: '#e11d48', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertCircle style={{ width: '13px', height: '13px', color: '#e11d48' }} />
+                            Passwords do not match
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
+
                     {fieldErrors.confirmPassword && (
-                      <span style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '2px', display: 'block' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '4px', display: 'block' }}>
                         {fieldErrors.confirmPassword}
                       </span>
                     )}

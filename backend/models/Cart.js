@@ -64,6 +64,5 @@ const cartSchema = new mongoose.Schema(
   }
 );
 
-cartSchema.index({ pharmacy: 1 });
-
+// Index on pharmacy is created by unique: true
 module.exports = mongoose.model("Cart", cartSchema);

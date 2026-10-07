@@ -3,48 +3,162 @@ const SupplyChainEvent = require("../../models/SupplyChainEvent");
 const Batch = require("../../models/Batch");
 const User = require("../../models/User");
 const Organization = require("../../models/Organization");
+const BlockchainService = require("../services/blockchainService");
 
+/**
+ * Sanitizes details text and metadata to prevent leaking sensitive information
+ * such as passwords, tokens, private keys, or credentials.
+ */
+const sanitizeDetails = (details) => {
+  if (!details) return "";
+
+  if (typeof details === "string") {
+    try {
+      const parsed = JSON.parse(details);
+      return sanitizeDetails(parsed);
+    } catch {
+      // String format - redact any password or token occurrences
+      return details
+        .replace(/"?password"?\s*[:=]\s*"?[^",\s}]+/gi, 'password: "[REDACTED]"')
+        .replace(/"?token"?\s*[:=]\s*"?[^",\s}]+/gi, 'token: "[REDACTED]"')
+        .replace(/"?privateKey"?\s*[:=]\s*"?[^",\s}]+/gi, 'privateKey: "[REDACTED]"');
+    }
+  }
+
+  if (typeof details === "object" && details !== null) {
+    const sensitiveKeys = ["password", "token", "jwt", "secret", "privatekey", "signature", "refreshtoken"];
+    const cleaned = {};
+
+    for (const [k, v] of Object.entries(details)) {
+      if (sensitiveKeys.some((s) => k.toLowerCase().includes(s))) {
+        cleaned[k] = "[REDACTED]";
+      } else if (typeof v === "object" && v !== null) {
+        cleaned[k] = sanitizeDetails(v);
+      } else {
+        cleaned[k] = v;
+      }
+    }
+
+    return Object.entries(cleaned)
+      .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
+      .join(" | ");
+  }
+
+  return String(details);
+};
+
+/**
+ * GET /api/admin/audit or /api/audit-logs
+ * Strictly read-only audit log querying with server-side pagination, composable filtering,
+ * clear separation between off-chain application events and on-chain blockchain events,
+ * and real blockchain provider telemetry.
+ */
 const getAuditLogs = async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 10));
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 15));
     const skip = (page - 1) * limit;
 
-    const { search, source = "ALL", action, status, entityType, startDate, endDate } = req.query;
+    const {
+      search,
+      source = "ALL",
+      action,
+      status = "ALL",
+      entityType,
+      startDate,
+      endDate,
+    } = req.query;
 
+    const requestedSource = (source || "ALL").toUpperCase();
     const searchRegex = search && search.trim() ? new RegExp(search.trim(), "i") : null;
 
     // Date range filter
     const dateFilter = {};
-    if (startDate || endDate) {
-      if (startDate) dateFilter.$gte = new Date(startDate);
-      if (endDate) dateFilter.$lte = new Date(endDate);
+    if (startDate) {
+      const parsedStart = new Date(startDate);
+      if (!isNaN(parsedStart.getTime())) dateFilter.$gte = parsedStart;
+    }
+    if (endDate) {
+      const parsedEnd = new Date(endDate);
+      if (!isNaN(parsedEnd.getTime())) dateFilter.$lte = parsedEnd;
     }
 
-    let applicationEvents = [];
-    let blockchainEvents = [];
+    let applicationLogs = [];
+    let blockchainLogs = [];
+    let totalApplicationCount = 0;
+    let totalBlockchainCount = 0;
 
-    // 1. Query Application Audit Logs (Off-Chain)
-    if (source.toUpperCase() === "ALL" || source.toUpperCase() === "APPLICATION") {
+    // -------------------------------------------------------------------------
+    // 1. QUERY APPLICATION AUDIT EVENTS (OFF-CHAIN)
+    // -------------------------------------------------------------------------
+    if (requestedSource === "ALL" || requestedSource === "APPLICATION") {
       const appQuery = {};
+
       if (Object.keys(dateFilter).length > 0) {
         appQuery.createdAt = dateFilter;
       }
+
       if (entityType && entityType.toUpperCase() !== "ALL") {
         appQuery.entityType = entityType;
       }
+
       if (action && action.toUpperCase() !== "ALL") {
-        if (action.toUpperCase() === "USER_AUTH") {
-          appQuery.action = { $in: ["USER_REGISTERED", "USER_LOGGED_OUT", "LOGIN_SUCCESS", "LOGIN_FAILED", "PASSWORD_RESET_REQUESTED", "PASSWORD_RESET_SUCCESS", "USER_STATUS_APPROVED", "USER_STATUS_SUSPENDED"] };
-        } else if (action.toUpperCase() === "LICENSE") {
-          appQuery.action = { $in: ["LICENSE_SUBMITTED", "LICENSE_UPDATED", "LICENSE_APPROVED", "LICENSE_REJECTED"] };
-        } else if (action.toUpperCase() === "BATCH") {
-          appQuery.action = { $in: ["BATCH_CREATED", "BATCH_UPDATED", "BATCH_RECALLED", "BATCH_FLAGGED", "ADMIN_BATCH_RECALLED", "ADMIN_BATCH_FLAGGED"] };
+        const act = action.toUpperCase();
+        if (act === "USER_AUTH") {
+          appQuery.action = {
+            $in: [
+              "USER_REGISTERED",
+              "USER_LOGGED_OUT",
+              "LOGIN_SUCCESS",
+              "LOGIN_FAILED",
+              "PASSWORD_RESET_REQUESTED",
+              "PASSWORD_RESET_SUCCESS",
+              "USER_STATUS_APPROVED",
+              "USER_STATUS_SUSPENDED",
+              "USER_STATUS_REJECTED",
+            ],
+          };
+        } else if (act === "LICENSE") {
+          appQuery.action = {
+            $in: [
+              "LICENSE_SUBMITTED",
+              "LICENSE_UPDATED",
+              "LICENSE_APPROVED",
+              "LICENSE_REJECTED",
+              "LICENSE_VERIFIED",
+            ],
+          };
+        } else if (act === "BATCH") {
+          appQuery.action = {
+            $in: [
+              "BATCH_CREATED",
+              "BATCH_UPDATED",
+              "BATCH_RECALLED",
+              "BATCH_FLAGGED",
+              "ADMIN_BATCH_RECALLED",
+              "ADMIN_BATCH_FLAGGED",
+            ],
+          };
+        } else if (act === "SUPPLY_CHAIN") {
+          appQuery.action = {
+            $in: ["SUPPLY_CHAIN_DISPATCHED", "BATCH_CREATED", "BATCH_RECALLED"],
+          };
         } else {
           appQuery.action = new RegExp(action, "i");
         }
       }
 
+      // Status filtering for application events based on outcome
+      if (status && status.toUpperCase() !== "ALL") {
+        const s = status.toUpperCase();
+        if (s === "FAILED" || s === "REJECTED") {
+          appQuery.action = { $regex: /FAILED|REJECTED|SUSPENDED/i };
+        } else if (s === "SUCCESS" || s === "CONFIRMED") {
+          appQuery.action = { $not: /FAILED|REJECTED|SUSPENDED/i };
+        }
+      }
+
+      // Search filtering
       if (searchRegex) {
         const matchingUsers = await User.find({
           $or: [{ name: searchRegex }, { email: searchRegex }],
@@ -60,52 +174,72 @@ const getAuditLogs = async (req, res, next) => {
         ];
       }
 
-      const rawAppLogs = await AuditLog.find(appQuery)
-        .populate("user", "name email role")
-        .populate("organization", "name type")
-        .sort({ createdAt: -1 })
-        .lean();
+      if (requestedSource === "APPLICATION") {
+        // Direct server-side pagination on AuditLog
+        const [rawLogs, count] = await Promise.all([
+          AuditLog.find(appQuery)
+            .select("-__v")
+            .populate("user", "name email role")
+            .populate("organization", "name type")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+          AuditLog.countDocuments(appQuery),
+        ]);
 
-      applicationEvents = rawAppLogs.map((log) => {
-        let detailsText = "";
-        if (typeof log.details === "object" && log.details !== null) {
-          detailsText = Object.entries(log.details)
-            .map(([k, v]) => `${k}: ${v}`)
-            .join(" | ");
-        } else {
-          detailsText = String(log.details || "");
-        }
+        totalApplicationCount = count;
+        applicationLogs = rawLogs.map(formatApplicationLog);
+      } else {
+        // Source is ALL: count and bounded query for combination
+        const count = await AuditLog.countDocuments(appQuery);
+        totalApplicationCount = count;
 
-        const isFailure =
-          log.action.includes("FAILED") ||
-          log.action.includes("REJECTED") ||
-          log.action.includes("SUSPENDED");
+        const maxToFetch = Math.min(skip + limit, 200);
+        const rawLogs = await AuditLog.find(appQuery)
+          .select("-__v")
+          .populate("user", "name email role")
+          .populate("organization", "name type")
+          .sort({ createdAt: -1 })
+          .limit(maxToFetch)
+          .lean();
 
-        return {
-          _id: log._id,
-          timestamp: log.createdAt,
-          action: log.action,
-          actor: log.user ? { name: log.user.name, email: log.user.email, role: log.user.role } : null,
-          organization: log.organization ? { name: log.organization.name, type: log.organization.type } : null,
-          entityType: log.entityType || "System",
-          entityId: log.entityId || null,
-          details: detailsText,
-          ipAddress: log.ipAddress || "Internal System",
-          source: "APPLICATION",
-          status: isFailure ? "FAILED" : "SUCCESS",
-          transactionHash: log.details?.transactionHash || log.metadata?.transactionHash || null,
-          blockNumber: log.metadata?.blockNumber || null,
-          metadata: log.metadata || null,
-        };
-      });
+        applicationLogs = rawLogs.map(formatApplicationLog);
+      }
     }
 
-    // 2. Query Blockchain Supply Chain Events (On-Chain)
-    if (source.toUpperCase() === "ALL" || source.toUpperCase() === "BLOCKCHAIN") {
+    // -------------------------------------------------------------------------
+    // 2. QUERY BLOCKCHAIN CUSTODY EVENTS (ON-CHAIN)
+    // -------------------------------------------------------------------------
+    if (requestedSource === "ALL" || requestedSource === "BLOCKCHAIN") {
       const chainQuery = {};
+
       if (Object.keys(dateFilter).length > 0) {
         chainQuery.eventDate = dateFilter;
       }
+
+      if (action && action.toUpperCase() !== "ALL") {
+        const act = action.toUpperCase();
+        if (act === "SUPPLY_CHAIN" || act === "BATCH") {
+          // All SupplyChainEvents are supply chain / batch events
+        } else if (act === "USER_AUTH" || act === "LICENSE") {
+          // Off-chain only categories
+          chainQuery.eventType = "__NONE__";
+        } else {
+          chainQuery.eventType = new RegExp(action, "i");
+        }
+      }
+
+      // Status filter for blockchain events
+      if (status && status.toUpperCase() !== "ALL") {
+        const s = status.toUpperCase();
+        if (s === "FAILED" || s === "REJECTED") {
+          // Recorded on-chain checkpoints are valid/confirmed
+          chainQuery._id = null;
+        }
+      }
+
+      // Search filter for blockchain events
       if (searchRegex) {
         const matchingBatches = await Batch.find({
           $or: [{ batchNumber: searchRegex }, { qrIdentifier: searchRegex }],
@@ -121,98 +255,126 @@ const getAuditLogs = async (req, res, next) => {
         ];
       }
 
-      const rawChainEvents = await SupplyChainEvent.find(chainQuery)
-        .populate("batch", "batchNumber qrIdentifier product")
-        .populate("fromOrganization", "name type")
-        .populate("toOrganization", "name type")
-        .populate("user", "name email role")
-        .sort({ eventDate: -1 })
-        .lean();
+      if (requestedSource === "BLOCKCHAIN") {
+        // Direct server-side pagination on SupplyChainEvent
+        const [rawEvents, count] = await Promise.all([
+          SupplyChainEvent.find(chainQuery)
+            .select("-__v")
+            .populate("batch", "batchNumber qrIdentifier product batchHash blockchainTxHash")
+            .populate("fromOrganization", "name type")
+            .populate("toOrganization", "name type")
+            .populate("user", "name email role")
+            .sort({ eventDate: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+          SupplyChainEvent.countDocuments(chainQuery),
+        ]);
 
-      blockchainEvents = rawChainEvents.map((evt) => ({
-        _id: evt._id,
-        timestamp: evt.eventDate || evt.createdAt,
-        action: `ONCHAIN_${evt.eventType}`,
-        actor: evt.user ? { name: evt.user.name, email: evt.user.email, role: evt.user.role } : null,
-        organization: evt.fromOrganization ? { name: evt.fromOrganization.name, type: evt.fromOrganization.type } : null,
-        entityType: "SupplyChainEvent",
-        entityId: evt.batch?._id || evt._id,
-        batchNumber: evt.batch?.batchNumber || "N/A",
-        details: `On-Chain Custody Checkpoint (${evt.eventType}): ${evt.fromOrganization?.name || "Origin"} → ${evt.toOrganization?.name || "Destination"}.${evt.notes ? ` Notes: ${evt.notes}` : ""}`,
-        ipAddress: "N/A (Blockchain Protocol)",
-        source: "BLOCKCHAIN",
-        status: "CONFIRMED",
-        transactionHash: evt.transactionHash || null,
-        blockNumber: evt.blockNumber || null,
-        blockchainNetwork: evt.blockchainNetwork || "Sepolia Ethereum Testnet (Simulated Proof)",
-        metadata: {
-          fromOrganization: evt.fromOrganization?.name,
-          toOrganization: evt.toOrganization?.name,
-          location: evt.location,
-          quantity: evt.quantity,
-        },
-      }));
+        totalBlockchainCount = count;
+        blockchainLogs = rawEvents.map(formatBlockchainEvent);
+      } else {
+        // Source is ALL: count and bounded query for combination
+        const count = await SupplyChainEvent.countDocuments(chainQuery);
+        totalBlockchainCount = count;
+
+        const maxToFetch = Math.min(skip + limit, 200);
+        const rawEvents = await SupplyChainEvent.find(chainQuery)
+          .select("-__v")
+          .populate("batch", "batchNumber qrIdentifier product batchHash blockchainTxHash")
+          .populate("fromOrganization", "name type")
+          .populate("toOrganization", "name type")
+          .populate("user", "name email role")
+          .sort({ eventDate: -1 })
+          .limit(maxToFetch)
+          .lean();
+
+        blockchainLogs = rawEvents.map(formatBlockchainEvent);
+      }
     }
 
-    // Merge and Sort
-    let combinedLogs = [...applicationEvents, ...blockchainEvents];
+    // -------------------------------------------------------------------------
+    // 3. MERGE & PAGINATE
+    // -------------------------------------------------------------------------
+    let paginatedRecords = [];
+    let totalRecordsCount = 0;
 
-    // Status filter
-    if (status && status.toUpperCase() !== "ALL") {
-      combinedLogs = combinedLogs.filter((l) => l.status.toUpperCase() === status.toUpperCase());
+    if (requestedSource === "APPLICATION") {
+      paginatedRecords = applicationLogs;
+      totalRecordsCount = totalApplicationCount;
+    } else if (requestedSource === "BLOCKCHAIN") {
+      paginatedRecords = blockchainLogs;
+      totalRecordsCount = totalBlockchainCount;
+    } else {
+      totalRecordsCount = totalApplicationCount + totalBlockchainCount;
+      const combined = [...applicationLogs, ...blockchainLogs];
+      combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      paginatedRecords = combined.slice(skip, skip + limit);
     }
 
-    // Sort descending by timestamp
-    combinedLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // -------------------------------------------------------------------------
+    // 4. REAL SUMMARY METRICS & REAL BLOCKCHAIN TELEMETRY
+    // -------------------------------------------------------------------------
+    const [totalDbAppEvents, totalDbChainEvents, totalDbOnChainBatches, latestRecordedTx] =
+      await Promise.all([
+        AuditLog.countDocuments(),
+        SupplyChainEvent.countDocuments(),
+        Batch.countDocuments({
+          $or: [
+            { blockchainTxHash: { $exists: true, $ne: null, $ne: "" } },
+            { batchHash: { $exists: true, $ne: null, $ne: "" } },
+          ],
+        }),
+        SupplyChainEvent.findOne({
+          transactionHash: { $exists: true, $ne: null, $ne: "" },
+        })
+          .sort({ eventDate: -1 })
+          .populate("batch", "batchNumber qrIdentifier")
+          .populate("fromOrganization", "name")
+          .populate("toOrganization", "name")
+          .lean(),
+      ]);
 
-    // Slice for server-side pagination
-    const totalCount = combinedLogs.length;
-    const paginatedLogs = combinedLogs.slice(skip, skip + limit);
-
-    // Calculate live summary stats
-    const [totalAppCount, totalChainCount, totalOnChainBatches, latestTxEvt] = await Promise.all([
-      AuditLog.countDocuments(),
-      SupplyChainEvent.countDocuments(),
-      Batch.countDocuments({ blockchainTxHash: { $exists: true, $ne: null, $ne: "" } }),
-      SupplyChainEvent.findOne({ transactionHash: { $exists: true, $ne: null, $ne: "" } })
-        .sort({ eventDate: -1 })
-        .populate("batch", "batchNumber")
-        .populate("fromOrganization", "name")
-        .populate("toOrganization", "name")
-        .lean(),
-    ]);
+    // Query real provider status (checks BLOCKCHAIN_RPC_URL, returns NOT_CONFIGURED if unset)
+    const providerStatus = await BlockchainService.getProviderStatus();
+    const contractInfo = BlockchainService.getContractInfo();
 
     return res.status(200).json({
       success: true,
       data: {
-        logs: paginatedLogs,
+        logs: paginatedRecords,
         pagination: {
           page,
           limit,
-          total: totalCount,
-          totalPages: Math.ceil(totalCount / limit) || 1,
+          total: totalRecordsCount,
+          totalPages: Math.ceil(totalRecordsCount / limit) || 1,
         },
         summary: {
-          totalEvents: totalAppCount + totalChainCount,
-          applicationEvents: totalAppCount,
-          blockchainEvents: totalChainCount,
-          onChainBatches: totalOnChainBatches,
+          totalEvents: totalDbAppEvents + totalDbChainEvents,
+          applicationEvents: totalDbAppEvents,
+          blockchainEvents: totalDbChainEvents,
+          onChainBatches: totalDbOnChainBatches,
         },
         blockchainMonitoring: {
-          status: "CONNECTED",
-          network: process.env.BLOCKCHAIN_NETWORK || "Sepolia Ethereum Testnet (Simulated Proof)",
-          contractAddress: process.env.CONTRACT_ADDRESS || "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-          totalOnChainBatches,
-          totalOnChainEvents: totalChainCount,
-          latestTx: latestTxEvt
+          status: providerStatus.status, // "CONNECTED" | "NOT_CONFIGURED" | "UNAVAILABLE"
+          network: providerStatus.network,
+          rpcUrl: providerStatus.rpcUrl,
+          latestBlock: providerStatus.latestBlock,
+          contractAddress: contractInfo.contractAddress,
+          isContractConfigured: contractInfo.isConfigured,
+          message: providerStatus.message,
+          totalOnChainEvents: totalDbChainEvents,
+          totalOnChainBatches: totalDbOnChainBatches,
+          latestTx: latestRecordedTx
             ? {
-                txHash: latestTxEvt.transactionHash,
-                blockNumber: latestTxEvt.blockNumber,
-                eventType: latestTxEvt.eventType,
-                batchNumber: latestTxEvt.batch?.batchNumber || "N/A",
-                from: latestTxEvt.fromOrganization?.name || "Origin Facility",
-                to: latestTxEvt.toOrganization?.name || "Recipient Node",
-                timestamp: latestTxEvt.eventDate || latestTxEvt.createdAt,
+                txHash: latestRecordedTx.transactionHash,
+                blockNumber: latestRecordedTx.blockNumber || null,
+                eventType: latestRecordedTx.eventType,
+                batchNumber: latestRecordedTx.batch?.batchNumber || null,
+                qrIdentifier: latestRecordedTx.batch?.qrIdentifier || null,
+                from: latestRecordedTx.fromOrganization?.name || "Origin Facility",
+                to: latestRecordedTx.toOrganization?.name || "Recipient Node",
+                timestamp: latestRecordedTx.eventDate || latestRecordedTx.createdAt,
               }
             : null,
         },
@@ -224,31 +386,115 @@ const getAuditLogs = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/admin/audit/:id or /api/audit-logs/:id
+ * Strictly read-only detailed inspection with real correlation when supported by identifiers.
+ */
 const getAuditLogById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    let log = await AuditLog.findById(id)
-      .populate("user", "name email role")
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid audit event identifier format.",
+      });
+    }
+
+    // 1. Check in AuditLog (Application off-chain)
+    const log = await AuditLog.findById(id)
+      .select("-__v")
+      .populate("user", "name email role accountStatus")
       .populate("organization", "name type registrationNumber address contactEmail")
       .lean();
 
     if (log) {
-      let detailsText = "";
-      if (typeof log.details === "object" && log.details !== null) {
-        detailsText = Object.entries(log.details)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join(" | ");
-      } else {
-        detailsText = String(log.details || "");
-      }
-
-      // Check if correlated to a batch
       let correlatedBatch = null;
+      let correlatedBlockchainEvents = [];
+
+      // Check if this application event is tied to a real Batch identifier
       if (log.entityType === "Batch" && log.entityId) {
         correlatedBatch = await Batch.findById(log.entityId)
-          .select("batchNumber product qrIdentifier blockchainTxHash blockNumber")
-          .populate("product", "name productCode")
+          .select("batchNumber product qrIdentifier batchHash blockchainTxHash blockNumber status createdAt")
+          .populate("product", "name productCode genericName")
+          .lean();
+      } else if (log.entityType === "SupplyChainEvent" && log.entityId) {
+        const scEvt = await SupplyChainEvent.findById(log.entityId).select("batch").lean();
+        if (scEvt && scEvt.batch) {
+          correlatedBatch = await Batch.findById(scEvt.batch)
+            .select("batchNumber product qrIdentifier batchHash blockchainTxHash blockNumber status createdAt")
+            .populate("product", "name productCode genericName")
+            .lean();
+        }
+      } else if (log.details?.batchNumber) {
+        correlatedBatch = await Batch.findOne({ batchNumber: log.details.batchNumber })
+          .select("batchNumber product qrIdentifier batchHash blockchainTxHash blockNumber status createdAt")
+          .populate("product", "name productCode genericName")
+          .lean();
+      }
+
+      if (correlatedBatch) {
+        correlatedBlockchainEvents = await SupplyChainEvent.find({ batch: correlatedBatch._id })
+          .select("eventType transactionHash blockNumber eventDate fromOrganization toOrganization location notes")
+          .populate("fromOrganization", "name type")
+          .populate("toOrganization", "name type")
+          .sort({ eventDate: 1, _id: 1 })
+          .lean();
+      }
+
+      const isFailure =
+        log.action.includes("FAILED") ||
+        log.action.includes("REJECTED") ||
+        log.action.includes("SUSPENDED");
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          log: {
+            _id: log._id,
+            timestamp: log.createdAt,
+            action: log.action,
+            actor: log.user ? { name: log.user.name, email: log.user.email, role: log.user.role } : null,
+            organization: log.organization ? { name: log.organization.name, type: log.organization.type } : null,
+            entityType: log.entityType || "System",
+            entityId: log.entityId || null,
+            details: sanitizeDetails(log.details),
+            ipAddress: log.ipAddress || "Internal System",
+            source: "APPLICATION",
+            status: isFailure ? "FAILED" : "SUCCESS",
+            transactionHash: null,
+            blockNumber: null,
+            correlatedBatch,
+            correlatedBlockchainEvents,
+          },
+        },
+      });
+    }
+
+    // 2. Check in SupplyChainEvent (Blockchain on-chain)
+    const evt = await SupplyChainEvent.findById(id)
+      .select("-__v")
+      .populate("batch", "batchNumber qrIdentifier product batchHash blockchainTxHash blockNumber status")
+      .populate("fromOrganization", "name type registrationNumber address contactEmail")
+      .populate("toOrganization", "name type registrationNumber address contactEmail")
+      .populate("user", "name email role")
+      .lean();
+
+    if (evt) {
+      let correlatedApplicationLogs = [];
+
+      // Look up real application audit events linked to this batch
+      if (evt.batch?._id) {
+        correlatedApplicationLogs = await AuditLog.find({
+          $or: [
+            { entityId: evt.batch._id },
+            { "details": { $regex: evt.batch.batchNumber || evt.batch._id.toString() } },
+          ],
+        })
+          .select("action createdAt user entityType")
+          .populate("user", "name role")
+          .sort({ createdAt: -1 })
+          .limit(10)
           .lean();
       }
 
@@ -256,51 +502,31 @@ const getAuditLogById = async (req, res, next) => {
         success: true,
         data: {
           log: {
-            ...log,
-            timestamp: log.createdAt,
-            source: "APPLICATION",
-            status: log.action.includes("FAILED") || log.action.includes("REJECTED") ? "FAILED" : "SUCCESS",
-            details: detailsText,
-            correlatedBatch,
-          },
-        },
-      });
-    }
-
-    // Check if it's a SupplyChainEvent
-    const evt = await SupplyChainEvent.findById(id)
-      .populate("batch", "batchNumber qrIdentifier product")
-      .populate("fromOrganization", "name type registrationNumber address contactEmail")
-      .populate("toOrganization", "name type registrationNumber address contactEmail")
-      .populate("user", "name email role")
-      .lean();
-
-    if (evt) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          log: {
             _id: evt._id,
             timestamp: evt.eventDate || evt.createdAt,
-            action: `ONCHAIN_${evt.eventType}`,
+            action: evt.eventType,
             actor: evt.user ? { name: evt.user.name, email: evt.user.email, role: evt.user.role } : null,
-            organization: evt.fromOrganization ? { name: evt.fromOrganization.name, type: evt.fromOrganization.type } : null,
+            organization: evt.fromOrganization
+              ? { name: evt.fromOrganization.name, type: evt.fromOrganization.type }
+              : null,
+            toOrganization: evt.toOrganization
+              ? { name: evt.toOrganization.name, type: evt.toOrganization.type }
+              : null,
             entityType: "SupplyChainEvent",
             entityId: evt.batch?._id || evt._id,
-            details: `On-Chain Custody Checkpoint (${evt.eventType}): ${evt.fromOrganization?.name || "Origin"} → ${evt.toOrganization?.name || "Destination"}.${evt.notes ? ` Notes: ${evt.notes}` : ""}`,
-            ipAddress: "N/A (Blockchain Protocol)",
+            batchNumber: evt.batch?.batchNumber || "—",
+            qrIdentifier: evt.batch?.qrIdentifier || null,
+            details: `Custodial Transfer (${evt.eventType}): ${evt.fromOrganization?.name || "Origin"} → ${evt.toOrganization?.name || "Destination"}.${evt.notes ? ` Notes: ${evt.notes}` : ""}`,
+            location: evt.location || "—",
+            quantity: evt.quantity || null,
+            ipAddress: "—",
             source: "BLOCKCHAIN",
             status: "CONFIRMED",
             transactionHash: evt.transactionHash || null,
             blockNumber: evt.blockNumber || null,
-            blockchainNetwork: evt.blockchainNetwork || "Sepolia Ethereum Testnet (Simulated Proof)",
-            correlatedBatch: evt.batch,
-            metadata: {
-              fromOrganization: evt.fromOrganization?.name,
-              toOrganization: evt.toOrganization?.name,
-              location: evt.location,
-              quantity: evt.quantity,
-            },
+            blockchainNetwork: evt.blockchainNetwork || null,
+            correlatedBatch: evt.batch || null,
+            correlatedApplicationLogs,
           },
         },
       });
@@ -316,8 +542,59 @@ const getAuditLogById = async (req, res, next) => {
   }
 };
 
+/**
+ * Format raw AuditLog entry into uniform frontend structure
+ */
+function formatApplicationLog(log) {
+  const isFailure =
+    log.action.includes("FAILED") ||
+    log.action.includes("REJECTED") ||
+    log.action.includes("SUSPENDED");
+
+  return {
+    _id: log._id,
+    timestamp: log.createdAt,
+    action: log.action,
+    actor: log.user ? { name: log.user.name, email: log.user.email, role: log.user.role } : null,
+    organization: log.organization ? { name: log.organization.name, type: log.organization.type } : null,
+    entityType: log.entityType || "System",
+    entityId: log.entityId || null,
+    details: sanitizeDetails(log.details),
+    ipAddress: log.ipAddress || "Internal System",
+    source: "APPLICATION",
+    status: isFailure ? "FAILED" : "SUCCESS",
+    transactionHash: null,
+    blockNumber: null,
+  };
+}
+
+/**
+ * Format raw SupplyChainEvent entry into uniform frontend structure
+ */
+function formatBlockchainEvent(evt) {
+  return {
+    _id: evt._id,
+    timestamp: evt.eventDate || evt.createdAt,
+    action: evt.eventType,
+    actor: evt.user ? { name: evt.user.name, email: evt.user.email, role: evt.user.role } : null,
+    organization: evt.fromOrganization
+      ? { name: evt.fromOrganization.name, type: evt.fromOrganization.type }
+      : null,
+    entityType: "SupplyChainEvent",
+    entityId: evt.batch?._id || evt._id,
+    batchNumber: evt.batch?.batchNumber || "—",
+    qrIdentifier: evt.batch?.qrIdentifier || null,
+    details: `Custodial Transfer (${evt.eventType}): ${evt.fromOrganization?.name || "Origin"} → ${evt.toOrganization?.name || "Destination"}.${evt.notes ? ` Notes: ${evt.notes}` : ""}`,
+    ipAddress: "—",
+    source: "BLOCKCHAIN",
+    status: "CONFIRMED",
+    transactionHash: evt.transactionHash || null,
+    blockNumber: evt.blockNumber || null,
+    blockchainNetwork: evt.blockchainNetwork || null,
+  };
+}
+
 module.exports = {
   getAuditLogs,
   getAuditLogById,
 };
-

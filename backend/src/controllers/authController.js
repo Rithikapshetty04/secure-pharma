@@ -226,7 +226,15 @@ const getVerificationStatus = async (req, res, next) => {
       });
     }
 
-    const query = userId ? { _id: userId } : { email: email.toLowerCase().trim() };
+    if (userId && !/^[0-9a-fA-F]{24}$/.test(String(userId).trim())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid userId format. Must be a 24-character hexadecimal ObjectId.",
+      });
+    }
+
+    const cleanEmail = typeof email === "string" ? email.toLowerCase().trim() : null;
+    const query = userId ? { _id: String(userId).trim() } : { email: cleanEmail };
     const user = await User.findOne(query).populate("organization");
 
     if (!user) {
@@ -252,7 +260,14 @@ const getVerificationStatus = async (req, res, next) => {
       role: user.role,
       accountStatus: user.accountStatus,
       rejectionReason: user.rejectionReason,
-      organization: user.organization,
+      organization: user.organization
+        ? {
+            id: user.organization._id,
+            name: user.organization.name,
+            type: user.organization.type,
+            status: user.organization.status,
+          }
+        : null,
       license: license
         ? {
             id: license._id,

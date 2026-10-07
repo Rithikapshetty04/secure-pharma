@@ -108,7 +108,6 @@ const orderSchema = new mongoose.Schema(
   }
 );
 
-orderSchema.index({ orderId: 1 });
 orderSchema.index({ pharmacy: 1 });
 orderSchema.index({ distributor: 1 });
 orderSchema.index({ status: 1 });

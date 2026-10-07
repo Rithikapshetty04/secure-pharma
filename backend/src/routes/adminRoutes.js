@@ -6,8 +6,12 @@ const {
   updateAdminUserStatus,
   getAdminBatches,
   getAdminBatchById,
-  updateAdminBatchStatus,
+  updateAdminBatchStatus
 } = require("../controllers/adminController");
+const {
+  getAuditLogs,
+  getAuditLogById,
+} = require("../controllers/auditController");
 const {
   authenticateToken,
   authorizeRoles,
@@ -62,6 +66,20 @@ router.patch(
   authenticateToken,
   authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
   updateAdminBatchStatus
+);
+
+router.get(
+  "/audit",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getAuditLogs
+);
+
+router.get(
+  "/audit/:id",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getAuditLogById
 );
 
 module.exports = router;

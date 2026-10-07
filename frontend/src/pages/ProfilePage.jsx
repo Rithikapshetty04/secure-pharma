@@ -168,6 +168,7 @@ export default function ProfilePage() {
                     type="text"
                     value={formData.contactPhone}
                     onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                    placeholder="+91 98765 43210"
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}
                   />
                 </div>

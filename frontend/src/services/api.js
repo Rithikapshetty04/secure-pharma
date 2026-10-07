@@ -42,6 +42,8 @@ export const adminApi = {
   updateBatchStatus: (id, status, reason) => api.updateAdminBatchStatus(id, status, reason),
   recallBatch: (id, reason) => api.updateAdminBatchStatus(id, 'RECALLED', reason),
   flagBatch: (id, reason) => api.updateAdminBatchStatus(id, 'FLAGGED', reason),
+  getAuditLogs: (params) => api.getAuditLogs(params),
+  getAuditLogById: (id) => api.getAuditLogById(id),
 };
 
 export const auditApi = {
@@ -69,6 +71,16 @@ export const licenseApi = {
 export const verificationApi = {
   verifyProduct: (identifier) => api.verifyProduct(identifier),
   submitScan: (data) => api.submitScan(data),
+};
+
+export const pharmacyApi = {
+  getDashboard: () => api.getPharmacyDashboard(),
+  getMedicines: (params) => api.getPharmacyMedicines(params),
+  getReceivedBatches: (params) => api.getPharmacyReceivedBatches(params),
+  receiveBatch: (data) => api.receivePharmacyBatch(data),
+  getHistory: (params) => api.getPharmacyHistory(params),
+  getCart: () => api.getPharmacyCart(),
+  addToCart: (data) => api.addPharmacyCartItem(data),
 };
 
 export default api;

@@ -479,6 +479,18 @@ export const api = {
     return handleResponse(res);
   },
 
+  async receivePharmacyBatch(data) {
+    const res = await fetch(`${BASE_URL}/api/pharmacy/transfers/receive`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   async getPharmacyHistory(params = {}) {
     const query = new URLSearchParams(params);
     const res = await fetch(`${BASE_URL}/api/pharmacy/history?${query}`, {
@@ -618,7 +630,7 @@ export const api = {
     return handleResponse(res);
   },
 
-  // Audit Logs
+  // Audit Logs (Admin Audit & Blockchain Monitoring)
   async getAuditLogs(params = {}) {
     let queryString = '';
     if (params && typeof params === 'object') {
@@ -630,14 +642,14 @@ export const api = {
       });
       queryString = new URLSearchParams(cleanParams).toString();
     }
-    const res = await fetch(`${BASE_URL}/api/audit-logs${queryString ? `?${queryString}` : ''}`, {
+    const res = await fetch(`${BASE_URL}/api/admin/audit${queryString ? `?${queryString}` : ''}`, {
       headers: { ...getAuthHeaders() },
     });
     return handleResponse(res);
   },
 
   async getAuditLogById(id) {
-    const res = await fetch(`${BASE_URL}/api/audit-logs/${encodeURIComponent(id)}`, {
+    const res = await fetch(`${BASE_URL}/api/admin/audit/${encodeURIComponent(id)}`, {
       headers: { ...getAuthHeaders() },
     });
     return handleResponse(res);

@@ -1,0 +1,13 @@
+# Root Gitignore
+.env
+.env.local
+.env.*.local
+!.env.example
+
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+*.log
+.DS_Store
