@@ -11,6 +11,8 @@ const {
 const {
   getAuditLogs,
   getAuditLogById,
+  getBlockchainLedger,
+  getBlockchainTxDetails,
 } = require("../controllers/auditController");
 const {
   authenticateToken,
@@ -18,6 +20,7 @@ const {
 } = require("../middleware/authMiddleware");
 
 const router = express.Router();
+
 
 router.get(
   "/dashboard",
@@ -73,6 +76,34 @@ router.get(
   authenticateToken,
   authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
   getAuditLogs
+);
+
+router.get(
+  "/audit/blockchain-ledger",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getBlockchainLedger
+);
+
+router.get(
+  "/audit/ledger",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getBlockchainLedger
+);
+
+router.get(
+  "/audit/blockchain-ledger/tx/:txHash",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getBlockchainTxDetails
+);
+
+router.get(
+  "/audit/ledger/tx/:txHash",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getBlockchainTxDetails
 );
 
 router.get(

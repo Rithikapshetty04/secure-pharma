@@ -1,5 +1,10 @@
 const express = require("express");
-const { getAuditLogs, getAuditLogById } = require("../controllers/auditController");
+const {
+  getAuditLogs,
+  getAuditLogById,
+  getBlockchainLedger,
+  getBlockchainTxDetails,
+} = require("../controllers/auditController");
 const {
   authenticateToken,
   authorizeRoles,
@@ -14,6 +19,35 @@ router.get(
   getAuditLogs
 );
 
+// Dedicated Blockchain Ledger Endpoints (Placed before /:id)
+router.get(
+  "/blockchain-ledger",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getBlockchainLedger
+);
+
+router.get(
+  "/ledger",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getBlockchainLedger
+);
+
+router.get(
+  "/blockchain-ledger/tx/:txHash",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getBlockchainTxDetails
+);
+
+router.get(
+  "/ledger/tx/:txHash",
+  authenticateToken,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "REGULATOR"),
+  getBlockchainTxDetails
+);
+
 router.get(
   "/:id",
   authenticateToken,
@@ -22,4 +56,5 @@ router.get(
 );
 
 module.exports = router;
+
 

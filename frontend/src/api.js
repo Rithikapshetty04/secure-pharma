@@ -655,6 +655,31 @@ export const api = {
     return handleResponse(res);
   },
 
+  // On-Chain Blockchain Ledger (Direct EVM & Smart Contract Ledger)
+  async getBlockchainLedger(params = {}) {
+    let queryString = '';
+    if (params && typeof params === 'object') {
+      const cleanParams = {};
+      Object.keys(params).forEach((key) => {
+        if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+          cleanParams[key] = params[key];
+        }
+      });
+      queryString = new URLSearchParams(cleanParams).toString();
+    }
+    const res = await fetch(`${BASE_URL}/api/admin/audit/ledger${queryString ? `?${queryString}` : ''}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  async getBlockchainTxDetails(txHash) {
+    const res = await fetch(`${BASE_URL}/api/admin/audit/ledger/tx/${encodeURIComponent(txHash)}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
   // Health
   async checkHealth() {
     try {

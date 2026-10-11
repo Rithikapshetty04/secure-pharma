@@ -95,9 +95,14 @@ export default function ManufacturerCreateBatchPage() {
     const fetchProducts = async () => {
       setLoadingProducts(true);
       try {
-        const res = await api.getProducts({ limit: 100 });
+        const mfgOrgId = user?.organization?._id || user?.organization;
+        const res = await api.getProducts({ limit: 100, manufacturerId: mfgOrgId });
         if (res && res.success) {
-          const fetchedProds = res.products || [];
+          const fetchedProds = (res.products || []).filter((p) => {
+            if (!mfgOrgId) return true;
+            const pMfgId = (p.manufacturer?._id || p.manufacturer || '').toString();
+            return pMfgId === mfgOrgId.toString();
+          });
           setProducts(fetchedProds);
           if (fetchedProds.length > 0) {
             setFormData((prev) => ({ ...prev, productId: fetchedProds[0]._id }));
@@ -114,14 +119,14 @@ export default function ManufacturerCreateBatchPage() {
     };
 
     fetchProducts();
-  }, []);
+  }, [user]);
 
   // Validation per step
   const validateStep = (currentStep) => {
     const errors = {};
 
     if (currentStep === 1) {
-      if (isNewProduct) {
+      if (isNewProduct || products.length === 0) {
         if (!formData.newProductName.trim()) errors.newProductName = 'Medicine commercial name is required.';
         if (!formData.productCode.trim()) errors.productCode = 'Product code / GTIN / NDC is required.';
       } else {
@@ -178,8 +183,8 @@ export default function ManufacturerCreateBatchPage() {
 
       let targetProductId = formData.productId;
 
-      // Register new drug formulation inline if requested
-      if (isNewProduct) {
+      // Register new drug formulation inline if requested or if no products exist
+      if (isNewProduct || !targetProductId) {
         setSubmitStageText('Registering new medicine formulation in database...');
         const prodRes = await api.createProduct({
           name: formData.newProductName.trim(),
@@ -419,6 +424,32 @@ export default function ManufacturerCreateBatchPage() {
             </div>
           )}
 
+          {/* Pending Organization Status Warning Banner */}
+          {user?.organization?.status && user.organization.status !== 'APPROVED' && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px',
+                padding: '14px 18px',
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: '10px',
+                color: '#92400e',
+                fontSize: '0.88rem',
+                marginBottom: '24px',
+              }}
+            >
+              <AlertCircle style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '2px', color: '#d97706' }} />
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.92rem' }}>Organization License Status: {user.organization.status}</strong>
+                <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#b45309' }}>
+                  Your manufacturer organization is currently under review by regulatory authorities. Once approved by an Administrator, full on-chain minting permissions will be enabled.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* ========================================================================= */}
           {/* STEP 1: MEDICINE INFORMATION                                              */}
           {/* ========================================================================= */}
@@ -438,29 +469,36 @@ export default function ManufacturerCreateBatchPage() {
               <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
                 <button
                   type="button"
+                  disabled={products.length === 0}
                   onClick={() => {
-                    setIsNewProduct(false);
-                    setFieldErrors({});
+                    if (products.length > 0) {
+                      setIsNewProduct(false);
+                      setFieldErrors({});
+                      if (!formData.productId) {
+                        setFormData((prev) => ({ ...prev, productId: products[0]._id }));
+                      }
+                    }
                   }}
                   style={{
                     flex: 1,
                     padding: '12px 16px',
                     borderRadius: '10px',
-                    border: `2px solid ${!isNewProduct ? '#2563eb' : '#e2e8f0'}`,
-                    background: !isNewProduct ? '#eff6ff' : '#ffffff',
-                    color: !isNewProduct ? '#1e40af' : '#475569',
-                    fontWeight: !isNewProduct ? '700' : '600',
+                    border: `2px solid ${!isNewProduct && products.length > 0 ? '#2563eb' : '#e2e8f0'}`,
+                    background: !isNewProduct && products.length > 0 ? '#eff6ff' : products.length === 0 ? '#f8fafc' : '#ffffff',
+                    color: !isNewProduct && products.length > 0 ? '#1e40af' : products.length === 0 ? '#94a3b8' : '#475569',
+                    fontWeight: !isNewProduct && products.length > 0 ? '700' : '600',
                     fontSize: '0.88rem',
-                    cursor: 'pointer',
+                    cursor: products.length === 0 ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
                     transition: 'all 0.15s',
                   }}
+                  title={products.length === 0 ? 'No registered formulations found for your organization yet' : ''}
                 >
                   <FlaskConical style={{ width: '18px', height: '18px' }} />
-                  Select Registered Drug Formulation
+                  Select Registered Formulation {products.length > 0 ? `(${products.length})` : '(0 available)'}
                 </button>
 
                 <button
@@ -473,10 +511,10 @@ export default function ManufacturerCreateBatchPage() {
                     flex: 1,
                     padding: '12px 16px',
                     borderRadius: '10px',
-                    border: `2px solid ${isNewProduct ? '#2563eb' : '#e2e8f0'}`,
-                    background: isNewProduct ? '#eff6ff' : '#ffffff',
-                    color: isNewProduct ? '#1e40af' : '#475569',
-                    fontWeight: isNewProduct ? '700' : '600',
+                    border: `2px solid ${isNewProduct || products.length === 0 ? '#2563eb' : '#e2e8f0'}`,
+                    background: isNewProduct || products.length === 0 ? '#eff6ff' : '#ffffff',
+                    color: isNewProduct || products.length === 0 ? '#1e40af' : '#475569',
+                    fontWeight: isNewProduct || products.length === 0 ? '700' : '600',
                     fontSize: '0.88rem',
                     cursor: 'pointer',
                     display: 'flex',
@@ -486,7 +524,7 @@ export default function ManufacturerCreateBatchPage() {
                     transition: 'all 0.15s',
                   }}
                 >
-                  <span>+ Register New Medicine Inline</span>
+                  <span>+ Register New Formulation Inline</span>
                 </button>
               </div>
 

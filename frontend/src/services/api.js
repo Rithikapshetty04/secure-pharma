@@ -44,12 +44,22 @@ export const adminApi = {
   flagBatch: (id, reason) => api.updateAdminBatchStatus(id, 'FLAGGED', reason),
   getAuditLogs: (params) => api.getAuditLogs(params),
   getAuditLogById: (id) => api.getAuditLogById(id),
+  getBlockchainLedger: (params) => api.getBlockchainLedger(params),
+  getBlockchainTxDetails: (txHash) => api.getBlockchainTxDetails(txHash),
 };
 
 export const auditApi = {
   getLogs: (params) => api.getAuditLogs(params),
   getLogById: (id) => api.getAuditLogById(id),
+  getBlockchainLedger: (params) => api.getBlockchainLedger(params),
+  getBlockchainTxDetails: (txHash) => api.getBlockchainTxDetails(txHash),
 };
+
+export const blockchainLedgerApi = {
+  getLedger: (params) => api.getBlockchainLedger(params),
+  getTxDetails: (txHash) => api.getBlockchainTxDetails(txHash),
+};
+
 
 export const productApi = {
   getProducts: (params) => api.getProducts(params),

@@ -275,6 +275,10 @@ export default function Sidebar({ isOpen, onClose }) {
               <NavLink to="/admin/audit" style={linkStyle} onClick={onClose}>
                 📋 <span>Audit / Traceability</span>
               </NavLink>
+
+              <NavLink to="/admin/audit/ledger" style={linkStyle} onClick={onClose}>
+                ⛓️ <span>Blockchain Ledger</span>
+              </NavLink>
             </>
           )}
 

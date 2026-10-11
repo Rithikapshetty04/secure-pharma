@@ -260,9 +260,25 @@ const createBatch = async (req, res, next) => {
 
     const mfgOrgId = req.user.organization?._id || req.user.organization;
 
-    // Check ownership unless Admin
+    if (!mfgOrgId) {
+      return res.status(403).json({
+        success: false,
+        message: "No organization linked to your account. Only verified manufacturer accounts can mint batches.",
+      });
+    }
+
+    const mfgOrg = req.user.organization;
     const isSuperAdminOrRegulator = req.user.role === "SUPER_ADMIN" || req.user.role === "ADMIN" || req.user.role === "REGULATOR";
-    if (!isSuperAdminOrRegulator && product.manufacturer.toString() !== mfgOrgId.toString()) {
+    if (mfgOrg && mfgOrg.status && mfgOrg.status !== "APPROVED" && !isSuperAdminOrRegulator) {
+      return res.status(403).json({
+        success: false,
+        message: `Your manufacturer organization status is '${mfgOrg.status}'. Only verified and approved organizations can mint pharmaceutical batches.`,
+      });
+    }
+
+    // Check ownership unless Admin
+    const prodMfgId = (product.manufacturer?._id || product.manufacturer || "").toString();
+    if (!isSuperAdminOrRegulator && prodMfgId !== mfgOrgId.toString()) {
       return res.status(403).json({
         success: false,
         message: "You can only mint batches for products registered to your organization.",
@@ -284,17 +300,32 @@ const createBatch = async (req, res, next) => {
     });
 
     // Record on-chain registration proof
-    const blockchainRecord = await BlockchainService.recordBatchOnChain({
-      batchNumber: normalizedBatchNumber,
-      productCode: product.productCode,
-      manufacturingDate: mfgDate,
-      expiryDate: expDate,
-      quantity: Number(quantity),
-      manufacturerId: mfgOrgId,
-      manufacturerOrgName: req.user.organization?.name || "Manufacturer",
-      location: location || req.user.organization?.address || "Primary Manufacturing Cleanroom",
-      batchHash,
-    });
+    let blockchainRecord = null;
+    try {
+      blockchainRecord = await BlockchainService.recordBatchOnChain({
+        batchNumber: normalizedBatchNumber,
+        productCode: product.productCode,
+        manufacturingDate: mfgDate,
+        expiryDate: expDate,
+        quantity: Number(quantity),
+        manufacturerId: mfgOrgId,
+        manufacturerOrgName: req.user.organization?.name || "Manufacturer",
+        location: location || req.user.organization?.address || "Primary Manufacturing Cleanroom",
+        batchHash,
+      });
+    } catch (bcErr) {
+      if (bcErr.code === "DUPLICATE_ON_CHAIN" || bcErr.message?.includes("already registered on-chain")) {
+        return res.status(409).json({
+          success: false,
+          message: `Batch ID '${normalizedBatchNumber}' is already registered on the blockchain ledger. Please use a unique Lot ID.`,
+        });
+      }
+      console.error("Blockchain batch registration error:", bcErr.message);
+      return res.status(500).json({
+        success: false,
+        message: `Failed to record batch on blockchain: ${bcErr.reason || bcErr.message || "EVM transaction failed"}`,
+      });
+    }
 
     const batch = await Batch.create({
       batchNumber: normalizedBatchNumber,

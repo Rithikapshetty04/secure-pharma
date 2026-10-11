@@ -277,6 +277,56 @@ const AdminAuditPage = () => {
   return (
     <div style={{ padding: '24px', maxWidth: '1360px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
+      {/* TOP BREADCRUMB & TABS NAVIGATION */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          <Link to="/admin/dashboard" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
+            Admin Dashboard
+          </Link>
+          <span>/</span>
+          <span style={{ fontWeight: '700', color: '#2563eb' }}>Audit & Monitoring</span>
+        </div>
+
+        <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '4px', borderRadius: '10px', gap: '4px' }}>
+          <Link
+            to="/admin/audit"
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '0.82rem',
+              fontWeight: '700',
+              color: '#1d4ed8',
+              background: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Activity style={{ width: '14px', height: '14px' }} />
+            Audit & Compliance Logs
+          </Link>
+          <Link
+            to="/admin/audit/ledger"
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '0.82rem',
+              fontWeight: '600',
+              color: '#475569',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Layers style={{ width: '14px', height: '14px' }} />
+            Blockchain Ledger
+          </Link>
+        </div>
+      </div>
+
       {/* 1. PAGE HEADER */}
       <div
         className="card"
@@ -479,21 +529,41 @@ const AdminAuditPage = () => {
             </div>
           </div>
 
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
-              fontWeight: '700',
-              background: blockchainMonitoring.status === 'CONNECTED' ? 'rgba(52, 211, 153, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-              color: blockchainMonitoring.status === 'CONNECTED' ? '#34d399' : '#fbbf24',
-              border: `1px solid ${blockchainMonitoring.status === 'CONNECTED' ? 'rgba(52, 211, 153, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
-              padding: '4px 12px',
-              borderRadius: '9999px'
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Link
+              to="/admin/audit/ledger"
+              style={{
+                background: '#2563eb',
+                color: '#ffffff',
+                padding: '5px 12px',
+                borderRadius: '6px',
+                fontSize: '0.78rem',
+                fontWeight: '700',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                textDecoration: 'none',
+              }}
+            >
+              <Layers style={{ width: '13px', height: '13px' }} />
+              Open Blockchain Ledger →
+            </Link>
+
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.75rem',
+                fontWeight: '700',
+                background: blockchainMonitoring.status === 'CONNECTED' ? 'rgba(52, 211, 153, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                color: blockchainMonitoring.status === 'CONNECTED' ? '#34d399' : '#fbbf24',
+                border: `1px solid ${blockchainMonitoring.status === 'CONNECTED' ? 'rgba(52, 211, 153, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                padding: '4px 12px',
+                borderRadius: '9999px'
+              }}
+            >
             {blockchainMonitoring.status === 'CONNECTED' ? (
               <>
                 <span className="live-dot" style={{ width: '6px', height: '6px', background: '#34d399' }} />
@@ -512,6 +582,7 @@ const AdminAuditPage = () => {
             )}
           </span>
         </div>
+      </div>
 
         {/* Telemetry Cards Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}>

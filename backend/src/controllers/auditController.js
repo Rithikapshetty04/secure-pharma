@@ -594,7 +594,46 @@ function formatBlockchainEvent(evt) {
   };
 }
 
+/**
+ * GET /api/admin/audit/ledger or /api/audit/blockchain-ledger
+ * Fetches real on-chain transaction ledger directly from the deployed smart contract
+ * and configured JSON-RPC provider without fabricating transactions.
+ */
+const getBlockchainLedger = async (req, res, next) => {
+  try {
+    const data = await BlockchainService.getBlockchainLedger(req.query);
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error("Error in getBlockchainLedger controller:", error);
+    next(error);
+  }
+};
+
+/**
+ * GET /api/admin/audit/ledger/tx/:txHash or /api/audit/blockchain-ledger/tx/:txHash
+ * Fetches full cryptographic details for a single on-chain transaction receipt.
+ */
+const getBlockchainTxDetails = async (req, res, next) => {
+  try {
+    const { txHash } = req.params;
+    const data = await BlockchainService.getBlockchainTxDetails(txHash);
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error("Error in getBlockchainTxDetails controller:", error);
+    next(error);
+  }
+};
+
 module.exports = {
   getAuditLogs,
   getAuditLogById,
+  getBlockchainLedger,
+  getBlockchainTxDetails,
 };
+

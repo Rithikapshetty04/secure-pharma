@@ -56,6 +56,7 @@ import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminLicensesPage from './pages/admin/AdminLicensesPage';
 import AdminBatchesPage from './pages/admin/AdminBatchesPage';
 import AdminAuditPage from './pages/admin/AdminAuditPage';
+import AdminBlockchainLedgerPage from './pages/admin/AdminBlockchainLedgerPage';
 
 function DashboardRedirect() {
   const { user } = useAuth();
@@ -357,6 +358,20 @@ export default function App() {
                   <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'REGULATOR']}>
                     <AppLayout><AdminAuditPage /></AppLayout>
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/audit/ledger"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'REGULATOR']}>
+                    <AppLayout><AdminBlockchainLedgerPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/blockchain-ledger"
+                element={
+                  <Navigate to="/admin/audit/ledger" replace />
                 }
               />
 
