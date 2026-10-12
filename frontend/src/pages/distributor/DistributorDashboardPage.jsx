@@ -67,6 +67,7 @@ export default function DistributorDashboardPage() {
   }, []);
 
   const [confirmingId, setConfirmingId] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   const handleConfirmReceipt = async (batchId, batchNumber) => {
     const targetBatchId = batchId || batchNumber;
@@ -74,6 +75,7 @@ export default function DistributorDashboardPage() {
 
     setConfirmingId(targetBatchId);
     setError(null);
+    setSuccessMessage(null);
     try {
       const res = await api.receiveDistributorBatch({
         batchId: targetBatchId,
@@ -82,6 +84,17 @@ export default function DistributorDashboardPage() {
       });
 
       if (res && res.success) {
+        // Instantly remove from pendingActions state so it disappears immediately from view
+        setPendingActions((prev) =>
+          prev.filter(
+            (act) =>
+              (act.batch?._id || act.batch)?.toString() !== targetBatchId.toString() &&
+              act.batch?.batchNumber !== batchNumber &&
+              act._id !== targetBatchId
+          )
+        );
+        setSuccessMessage(`✓ Batch #${batchNumber || ''} receipt confirmed and logged on blockchain! Added to warehouse inventory.`);
+        setTimeout(() => setSuccessMessage(null), 5000);
         await loadDashboardData();
       } else {
         setError(res?.message || 'Failed to confirm batch receipt.');
@@ -198,6 +211,27 @@ export default function DistributorDashboardPage() {
             <button onClick={loadDashboardData} className="btn btn-secondary btn-sm" style={{ padding: '6px 14px', fontSize: '0.82rem' }}>
               Retry Connection
             </button>
+          </div>
+        )}
+
+        {/* Global Success Notification Alert */}
+        {successMessage && (
+          <div
+            style={{
+              padding: '16px 20px',
+              background: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: '12px',
+              color: '#065f46',
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              boxShadow: '0 2px 8px rgba(5, 150, 105, 0.08)',
+            }}
+          >
+            <CheckCircle2 style={{ width: '22px', height: '22px', color: '#059669', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>{successMessage}</span>
           </div>
         )}
 

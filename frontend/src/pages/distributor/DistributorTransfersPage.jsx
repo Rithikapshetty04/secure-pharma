@@ -146,6 +146,23 @@ export default function DistributorTransfersPage() {
       const res = await api.receiveDistributorBatch(payload);
       if (res.success) {
         setReceiveSuccess(`✓ Batch #${receivingItem.batch?.batchNumber || ''} receipt confirmed and logged on blockchain!`);
+        const confirmedBatchId = (receivingItem.batch?._id || receivingItem.batch)?.toString();
+        setTransfers((prev) =>
+          prev.map((t) => {
+            const bId = (t.batch?._id || t.batch)?.toString();
+            if (bId === confirmedBatchId) {
+              return {
+                ...t,
+                batch: {
+                  ...(typeof t.batch === 'object' ? t.batch : {}),
+                  status: 'RECEIVED',
+                  currentHolder: user?.organization?._id || user?.organization,
+                },
+              };
+            }
+            return t;
+          })
+        );
         setTimeout(() => {
           setReceivingItem(null);
           loadData();
@@ -224,11 +241,16 @@ export default function DistributorTransfersPage() {
 
   const selectedDispatchBatch = activeInventoryBatches.find((b) => b._id === dispatchForm.batchId);
 
-  // Incoming dispatches awaiting receipt
+  // Incoming dispatches awaiting receipt:
+  // Only include dispatches where batch is still in transit and not yet held by this distributor
   const pendingIncomingTransfers = transfers.filter(
-    (t) =>
-      (t.toOrganization?._id || t.toOrganization)?.toString() === user?.organization?._id?.toString() &&
-      (t.eventType === 'DISPATCHED' || t.eventType === 'SHIPPED' || t.eventType === 'TRANSFERRED')
+    (t) => {
+      const isRecipient = (t.toOrganization?._id || t.toOrganization)?.toString() === user?.organization?._id?.toString();
+      const isDispatch = (t.eventType === 'DISPATCHED' || t.eventType === 'SHIPPED' || t.eventType === 'TRANSFERRED');
+      const isStillInTransit = t.batch?.status === 'IN_TRANSIT';
+      const isNotAlreadyHolder = (t.batch?.currentHolder?._id || t.batch?.currentHolder)?.toString() !== user?.organization?._id?.toString();
+      return isRecipient && isDispatch && isStillInTransit && isNotAlreadyHolder;
+    }
   );
 
   return (

@@ -43,33 +43,58 @@ const getDistributorDashboard = async (req, res, next) => {
       .populate("manufacturer", "name type status contactEmail address")
       .sort({ updatedAt: -1 });
 
-    // Calculate real stats:
-    // Received Batches: Events where toOrganization is distributor
+    // Map each batch to its full document
+    const batchMap = new Map();
+    batches.forEach((b) => batchMap.set(b._id.toString(), b));
+
+    // Map the latest event per batch (since events are sorted eventDate: -1)
+    const latestEventByBatch = new Map();
+    events.forEach((e) => {
+      const bId = (e.batch?._id || e.batch)?.toString();
+      if (bId && !latestEventByBatch.has(bId)) {
+        latestEventByBatch.set(bId, e);
+      }
+    });
+
+    // Pending Actions: Only dispatches awaiting distributor receipt
+    // A batch is awaiting receipt ONLY IF:
+    // 1. Its latest event is DISPATCHED/SHIPPED/TRANSFERRED directed to this distributor
+    // 2. The batch status is still IN_TRANSIT
+    // 3. The distributor does not already hold custody
+    const pendingReceiptEvents = [];
+    for (const [bId, latestEvent] of latestEventByBatch.entries()) {
+      const batchDoc = batchMap.get(bId);
+      const isRecipient = (latestEvent.toOrganization?._id || latestEvent.toOrganization)?.toString() === distributorOrgId.toString();
+      const isDispatchType = ["DISPATCHED", "SHIPPED", "TRANSFERRED"].includes(latestEvent.eventType);
+      const isStillInTransit = batchDoc && batchDoc.status === "IN_TRANSIT";
+      const isNotAlreadyHeld = batchDoc && (batchDoc.currentHolder?._id || batchDoc.currentHolder)?.toString() !== distributorOrgId.toString();
+
+      if (isRecipient && isDispatchType && isStillInTransit && isNotAlreadyHeld) {
+        pendingReceiptEvents.push(latestEvent);
+      }
+    }
+
+    // Active Inventory: Batches held by this distributor or active batches not EXPIRED or SOLD
+    const activeInventoryBatches = batches.filter(
+      (b) => {
+        const holderId = (b.currentHolder?._id || b.currentHolder)?.toString();
+        const isHolder = holderId === distributorOrgId.toString();
+        const isNotExpired = b.status !== "EXPIRED" && b.status !== "SOLD" && new Date(b.expiryDate) > new Date();
+        return (isHolder || b.status === "RECEIVED") && isNotExpired;
+      }
+    );
+
+    // Received Batches: Total batches received by this distributor
     const receivedEventBatches = events.filter(
-      (e) => (e.toOrganization?._id || e.toOrganization)?.toString() === distributorOrgId.toString()
+      (e) => (e.toOrganization?._id || e.toOrganization)?.toString() === distributorOrgId.toString() && e.eventType === "RECEIVED"
     );
     const receivedBatchesCount = new Set(
       receivedEventBatches.map((e) => (e.batch?._id || e.batch)?.toString()).filter(Boolean)
     ).size;
 
-    // Active Inventory: Batches not EXPIRED or SOLD
-    const activeInventoryBatches = batches.filter(
-      (b) => b.status !== "EXPIRED" && b.status !== "SOLD" && new Date(b.expiryDate) > new Date()
-    );
-
-    // Pending Transfers: Batches currently IN_TRANSIT
-    const pendingTransfersCount = batches.filter((b) => b.status === "IN_TRANSIT").length;
-
     // Outgoing Dispatches: Events where fromOrganization is distributor
     const outgoingEvents = events.filter(
       (e) => (e.fromOrganization?._id || e.fromOrganization)?.toString() === distributorOrgId.toString()
-    );
-
-    // Pending Actions: Incoming dispatches awaiting distributor receipt
-    const pendingReceiptEvents = events.filter(
-      (e) =>
-        (e.toOrganization?._id || e.toOrganization)?.toString() === distributorOrgId.toString() &&
-        (e.eventType === "DISPATCHED" || e.eventType === "SHIPPED" || e.eventType === "TRANSFERRED")
     );
 
     return res.status(200).json({
@@ -77,7 +102,7 @@ const getDistributorDashboard = async (req, res, next) => {
       stats: {
         totalReceivedBatches: receivedBatchesCount,
         activeInventoryCount: activeInventoryBatches.length,
-        pendingTransfersCount: pendingTransfersCount,
+        pendingTransfersCount: pendingReceiptEvents.length,
         completedTransfersCount: outgoingEvents.length,
       },
       recentInventory: activeInventoryBatches.slice(0, 6),
@@ -472,13 +497,34 @@ const getDistributorTransfers = async (req, res, next) => {
 
     const allDistributorEvents = await SupplyChainEvent.find({
       $or: [{ fromOrganization: distributorOrgId }, { toOrganization: distributorOrgId }],
+    }).sort({ eventDate: -1 });
+
+    // Map latest event per batch
+    const latestEventByBatchAll = new Map();
+    allDistributorEvents.forEach((e) => {
+      const bId = (e.batch?._id || e.batch)?.toString();
+      if (bId && !latestEventByBatchAll.has(bId)) {
+        latestEventByBatchAll.set(bId, e);
+      }
     });
 
-    const pendingIncoming = allDistributorEvents.filter(
-      (e) =>
-        e.toOrganization?.toString() === distributorOrgId.toString() &&
-        ["DISPATCHED", "SHIPPED", "TRANSFERRED"].includes(e.eventType)
-    );
+    const allInvolvedBatchIds = [...latestEventByBatchAll.keys()];
+    const allInvolvedBatches = await Batch.find({ _id: { $in: allInvolvedBatchIds } }).select("status currentHolder");
+    const allBatchMap = new Map();
+    allInvolvedBatches.forEach((b) => allBatchMap.set(b._id.toString(), b));
+
+    const pendingIncoming = [];
+    for (const [bId, latestEvent] of latestEventByBatchAll.entries()) {
+      const bDoc = allBatchMap.get(bId);
+      const isRecipient = (latestEvent.toOrganization?._id || latestEvent.toOrganization)?.toString() === distributorOrgId.toString();
+      const isDispatch = ["DISPATCHED", "SHIPPED", "TRANSFERRED"].includes(latestEvent.eventType);
+      const inTransit = bDoc && bDoc.status === "IN_TRANSIT";
+      const notHolder = bDoc && (bDoc.currentHolder?._id || bDoc.currentHolder)?.toString() !== distributorOrgId.toString();
+
+      if (isRecipient && isDispatch && inTransit && notHolder) {
+        pendingIncoming.push(latestEvent);
+      }
+    }
 
     const receivedIncoming = allDistributorEvents.filter(
       (e) =>
